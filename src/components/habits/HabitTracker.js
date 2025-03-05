@@ -363,9 +363,9 @@ const HabitTracker = () => {
           }
         }
       } else {
-        // For multiple tracking type - increment count
+        // For multiple tracking type - increment count without limit
         if (existingLog) {
-          // Increment count, without limit to target (allow exceeding target)
+          // Always increment count, even beyond target (allow exceeding target)
           const newCount = existingLog.count + 1;
           
           const { error } = await supabase
@@ -384,10 +384,12 @@ const HabitTracker = () => {
               ? { 
                   ...log, 
                   count: newCount,
-                  completed: newCount >= (habit.target_per_day || 1)
+                  completed: true // Always mark as completed for visual feedback
                 } 
               : log
           ));
+          
+          setError(null); // Clear any previous errors
         } else {
           // Create a new log if it doesn't exist
           const { data, error } = await supabase
@@ -395,7 +397,7 @@ const HabitTracker = () => {
             .insert([{
               habit_id: habit.id,
               date: dateStr,
-              completed: 1 >= (habit.target_per_day || 1), // Completed if target is 1
+              completed: true, // Always mark as completed for visual feedback
               count: 1, // Start with 1 count
               notes: ''
             }])

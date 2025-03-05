@@ -215,13 +215,15 @@ const WorkoutLog = () => {
       const exerciseToInsert = { 
         workout_id: selectedWorkout.id,
         name: exerciseData.name,
-        exercise_type: exerciseData.exercise_type
+        exercise_type: exerciseData.exercise_type,
+        // Always include sets and reps as they're required by the database schema
+        sets: exerciseData.sets || 1,
+        reps: exerciseData.reps || 1,
+        weight: 0 // Default to 0 for non-weight exercises
       };
       
       // Add type-specific fields
       if (exerciseData.exercise_type === 'weight_based') {
-        exerciseToInsert.sets = exerciseData.sets;
-        exerciseToInsert.reps = exerciseData.reps;
         exerciseToInsert.weight = exerciseData.weight;
       } else if (exerciseData.exercise_type === 'cardio_distance') {
         exerciseToInsert.distance = exerciseData.distance;
