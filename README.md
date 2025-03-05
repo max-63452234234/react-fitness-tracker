@@ -2,6 +2,17 @@
 
 A comprehensive fitness tracking application with Supabase integration.
 
+## GitHub Repository
+
+This project is hosted on GitHub at: [https://github.com/max-63452234234/react-fitness-tracker](https://github.com/max-63452234234/react-fitness-tracker)
+
+To clone the repository:
+```
+git clone https://github.com/max-63452234234/react-fitness-tracker.git
+cd react-fitness-tracker
+npm install
+```
+
 ## Features
 
 - Workout tracking and templates
@@ -104,5 +115,17 @@ Common database errors and solutions:
 
 - **"tracking_type column of habits table not found"**: This means the habits table is missing required columns. Run the fix-tracking-type.sql script in the Supabase SQL Editor.
 - **"Failed to save habit"**: This could indicate missing columns or indexes. Apply the fix-tracking-type.sql script.
+- **"null value in column 'sets' of relation 'exercises' violates not-null constraint"**: This occurs when adding non-weight exercises. The application now includes default values for these fields.
+
+### Recent Fixes
+
+1. **Multiple Habit Tracking**: Fixed the UI and database handling for tracking habits multiple times per day
+   - Habits can now be configured with a "Multiple Times Per Day" tracking method
+   - Each completion is visually represented with checkmarks
+   - Progress indicators show completion against daily targets
+
+2. **Exercise Addition Error Fixed**: Resolved the issue with adding time-based or cardio exercises
+   - Added default values for required fields to prevent database constraint violations
+   - All exercise types can now be added without errors
 
 After applying database changes, restart your application to ensure the changes take effect.
