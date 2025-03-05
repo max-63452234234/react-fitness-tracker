@@ -9,19 +9,35 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Paper,
+  useMediaQuery,
+  useTheme,
+  Tabs,
+  Tab
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';
+import TimerIcon from '@mui/icons-material/Timer';
+import StraightenIcon from '@mui/icons-material/Straighten';
 
 /**
  * ExerciseForm component
- * Form for adding exercises to a workout
+ * Mobile-friendly form for adding exercises to a workout
  * 
  * @param {Object} props - Component props
  * @param {Function} props.onAddExercise - Function to call when adding an exercise
  * @param {Function} props.commonExercises - List of predefined exercises
  */
 const ExerciseForm = ({ onAddExercise, commonExercises = [] }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [activeTab, setActiveTab] = useState(0);
   const [name, setName] = useState('');
   const [exerciseType, setExerciseType] = useState('weight_based');
   
@@ -154,211 +170,304 @@ const ExerciseForm = ({ onAddExercise, commonExercises = [] }) => {
     }
   };
 
+  // Handle tab change for mobile
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    
+    // Set exercise type based on tab
+    switch(newValue) {
+      case 0:
+        setExerciseType('weight_based');
+        break;
+      case 1:
+        setExerciseType('cardio_distance');
+        break;
+      case 2:
+        setExerciseType('cardio_time');
+        break;
+      case 3:
+        setExerciseType('time_based');
+        break;
+      default:
+        setExerciseType('weight_based');
+    }
+  };
+  
+  // Update tab when exercise type changes
+  useEffect(() => {
+    switch(exerciseType) {
+      case 'weight_based':
+        setActiveTab(0);
+        break;
+      case 'cardio_distance':
+        setActiveTab(1);
+        break;
+      case 'cardio_time':
+        setActiveTab(2);
+        break;
+      case 'time_based':
+        setActiveTab(3);
+        break;
+      default:
+        setActiveTab(0);
+    }
+  }, [exerciseType]);
+
   return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant="h6" gutterBottom>
-        Add Exercise
-      </Typography>
-      
-      <Box component="form" onSubmit={handleSubmit}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={4}>
-            <TextField
-              required
-              fullWidth
-              id="exercise-name"
-              label="Exercise Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              error={!!errors.name}
-              helperText={errors.name}
-              placeholder="e.g., Bench Press"
-            />
-          </Grid>
+      <Box sx={{ mt: 4 }}>
+        <Paper 
+          elevation={isMobile ? 0 : 2} 
+          sx={{ 
+            p: isMobile ? 1 : 3,
+            borderRadius: isMobile ? 0 : 2
+          }}
+        >
+          <Typography variant="h6" gutterBottom>
+            Add Exercise
+          </Typography>
           
-          <Grid item xs={12} sm={6} md={4}>
-            <FormControl fullWidth>
-              <InputLabel id="exercise-type-label">Exercise Type</InputLabel>
-              <Select
-                labelId="exercise-type-label"
-                id="exercise-type"
-                value={exerciseType}
-                label="Exercise Type"
-                onChange={(e) => setExerciseType(e.target.value)}
-              >
-                <MenuItem value="weight_based">Weight Based</MenuItem>
-                <MenuItem value="cardio_distance">Cardio with Distance</MenuItem>
-                <MenuItem value="cardio_time">Cardio with Time</MenuItem>
-                <MenuItem value="time_based">Time Based</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          {/* Show fields based on exercise type */}
-          {exerciseType === 'weight_based' && (
-            <>
-              <Grid item xs={12} sm={4} md={4}>
-                <TextField
-                  required
-                  fullWidth
-                  id="sets"
-                  label="Sets"
-                  type="number"
-                  inputProps={{ min: 1 }}
-                  value={sets}
-                  onChange={(e) => setSets(e.target.value)}
-                  error={!!errors.sets}
-                  helperText={errors.sets}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={4} md={4}>
-                <TextField
-                  required
-                  fullWidth
-                  id="reps"
-                  label="Reps"
-                  type="number"
-                  inputProps={{ min: 1 }}
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  error={!!errors.reps}
-                  helperText={errors.reps}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={4} md={4}>
-                <TextField
-                  fullWidth
-                  id="weight"
-                  label="Weight"
-                  type="number"
-                  inputProps={{ min: 0, step: 0.5 }}
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  error={!!errors.weight}
-                  helperText={errors.weight}
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">kg</InputAdornment>,
-                  }}
-                />
-              </Grid>
-            </>
-          )}
-          
-          {exerciseType === 'cardio_distance' && (
-            <>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  required
-                  fullWidth
-                  id="distance"
-                  label="Distance"
-                  type="number"
-                  inputProps={{ min: 0, step: 0.1 }}
-                  value={distance}
-                  onChange={(e) => setDistance(e.target.value)}
-                  error={!!errors.distance}
-                  helperText={errors.distance}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel id="distance-unit-label">Unit</InputLabel>
-                  <Select
-                    labelId="distance-unit-label"
-                    id="distance-unit"
-                    value={distanceUnit}
-                    label="Unit"
-                    onChange={(e) => setDistanceUnit(e.target.value)}
-                  >
-                    <MenuItem value="km">Kilometers</MenuItem>
-                    <MenuItem value="mi">Miles</MenuItem>
-                    <MenuItem value="m">Meters</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  fullWidth
-                  id="duration"
-                  label="Duration (MM:SS)"
-                  placeholder="e.g., 30:00"
-                  value={duration ? formatDuration(duration) : ''}
-                  onChange={(e) => setDuration(parseTimeToSeconds(e.target.value))}
-                  error={!!errors.duration}
-                  helperText={errors.duration}
-                />
-              </Grid>
-            </>
-          )}
-          
-          {exerciseType === 'cardio_time' && (
-            <>
-              <Grid item xs={12} sm={6} md={4}>
-                <TextField
-                  required
-                  fullWidth
-                  id="duration"
-                  label="Duration (MM:SS)"
-                  placeholder="e.g., 30:00"
-                  value={duration ? formatDuration(duration) : ''}
-                  onChange={(e) => setDuration(parseTimeToSeconds(e.target.value))}
-                  error={!!errors.duration}
-                  helperText={errors.duration}
-                />
-              </Grid>
-              
-              <Grid item xs={12} sm={6} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel id="intensity-label">Intensity</InputLabel>
-                  <Select
-                    labelId="intensity-label"
-                    id="intensity"
-                    value={intensity}
-                    label="Intensity"
-                    onChange={(e) => setIntensity(e.target.value)}
-                  >
-                    <MenuItem value="low">Low</MenuItem>
-                    <MenuItem value="medium">Medium</MenuItem>
-                    <MenuItem value="high">High</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </>
-          )}
-          
-          {exerciseType === 'time_based' && (
-            <Grid item xs={12} sm={6} md={4}>
+          <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={isMobile ? 2 : 3}>
+            <Grid item xs={12}>
               <TextField
                 required
                 fullWidth
-                id="duration"
-                label="Duration (MM:SS)"
-                placeholder="e.g., 01:30"
-                value={duration ? formatDuration(duration) : ''}
-                onChange={(e) => setDuration(parseTimeToSeconds(e.target.value))}
-                error={!!errors.duration}
-                helperText={errors.duration}
+                id="exercise-name"
+                label="Exercise Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                error={!!errors.name}
+                helperText={errors.name}
+                placeholder="e.g., Bench Press"
+                size={isMobile ? "medium" : "small"}
+                sx={{ mb: 2 }}
               />
             </Grid>
-          )}
+            
+            {isMobile ? (
+              <Grid item xs={12}>
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  variant="fullWidth"
+                  indicatorColor="primary"
+                  textColor="primary"
+                  aria-label="exercise type tabs"
+                  sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+                >
+                  <Tab icon={<FitnessCenterIcon />} label="Weights" />
+                  <Tab icon={<StraightenIcon />} label="Distance" />
+                  <Tab icon={<DirectionsRunIcon />} label="Cardio" />
+                  <Tab icon={<TimerIcon />} label="Time" />
+                </Tabs>
+              </Grid>
+            ) : (
+              <Grid item xs={12}>
+                <FormControl fullWidth sx={{ mb: 3 }}>
+                  <InputLabel id="exercise-type-label">Exercise Type</InputLabel>
+                  <Select
+                    labelId="exercise-type-label"
+                    id="exercise-type"
+                    value={exerciseType}
+                    label="Exercise Type"
+                    onChange={(e) => setExerciseType(e.target.value)}
+                  >
+                    <MenuItem value="weight_based">Weight Based</MenuItem>
+                    <MenuItem value="cardio_distance">Cardio with Distance</MenuItem>
+                    <MenuItem value="cardio_time">Cardio with Time</MenuItem>
+                    <MenuItem value="time_based">Time Based</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
           
-          <Grid item xs={12} sx={{ mt: 2 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              startIcon={<AddIcon />}
-            >
-              Add Exercise
-            </Button>
+          {/* Show fields based on exercise type */}
+            {/* Weight Based Fields */}
+            {exerciseType === 'weight_based' && (
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={isMobile ? 4 : 4}>
+                  <TextField
+                    required
+                    fullWidth
+                    id="sets"
+                    label="Sets"
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    value={sets}
+                    onChange={(e) => setSets(e.target.value)}
+                    error={!!errors.sets}
+                    helperText={errors.sets}
+                    size={isMobile ? "medium" : "small"}
+                  />
+                </Grid>
+                
+                <Grid item xs={isMobile ? 4 : 4}>
+                  <TextField
+                    required
+                    fullWidth
+                    id="reps"
+                    label="Reps"
+                    type="number"
+                    inputProps={{ min: 1 }}
+                    value={reps}
+                    onChange={(e) => setReps(e.target.value)}
+                    error={!!errors.reps}
+                    helperText={errors.reps}
+                    size={isMobile ? "medium" : "small"}
+                  />
+                </Grid>
+                
+                <Grid item xs={isMobile ? 4 : 4}>
+                  <TextField
+                    fullWidth
+                    id="weight"
+                    label="Weight"
+                    type="number"
+                    inputProps={{ min: 0, step: 0.5 }}
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    error={!!errors.weight}
+                    helperText={errors.weight}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">kg</InputAdornment>,
+                    }}
+                    size={isMobile ? "medium" : "small"}
+                  />
+                </Grid>
+              </Grid>
+            )}
+          
+          {/* Fields are now handled in the grid containers below */}
+          
+            {/* Cardio Distance Fields */}
+            {exerciseType === 'cardio_distance' && (
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={isMobile ? 12 : 4} sm={4}>
+                  <TextField
+                    required
+                    fullWidth
+                    id="distance"
+                    label="Distance"
+                    type="number"
+                    inputProps={{ min: 0, step: 0.1 }}
+                    value={distance}
+                    onChange={(e) => setDistance(e.target.value)}
+                    error={!!errors.distance}
+                    helperText={errors.distance}
+                    size={isMobile ? "medium" : "small"}
+                    sx={{ mb: isMobile ? 2 : 0 }}
+                  />
+                </Grid>
+                
+                <Grid item xs={isMobile ? 6 : 4} sm={4}>
+                  <FormControl fullWidth>
+                    <InputLabel id="distance-unit-label">Unit</InputLabel>
+                    <Select
+                      labelId="distance-unit-label"
+                      id="distance-unit"
+                      value={distanceUnit}
+                      label="Unit"
+                      onChange={(e) => setDistanceUnit(e.target.value)}
+                      size={isMobile ? "medium" : "small"}
+                    >
+                      <MenuItem value="km">Kilometers</MenuItem>
+                      <MenuItem value="mi">Miles</MenuItem>
+                      <MenuItem value="m">Meters</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                
+                <Grid item xs={isMobile ? 6 : 4} sm={4}>
+                  <TextField
+                    fullWidth
+                    id="duration"
+                    label="Duration (MM:SS)"
+                    placeholder="e.g., 30:00"
+                    value={duration ? formatDuration(duration) : ''}
+                    onChange={(e) => setDuration(parseTimeToSeconds(e.target.value))}
+                    error={!!errors.duration}
+                    helperText={errors.duration}
+                    size={isMobile ? "medium" : "small"}
+                  />
+                </Grid>
+              </Grid>
+            )}
+            
+            {/* Cardio Time Fields */}
+            {exerciseType === 'cardio_time' && (
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={isMobile ? 6 : 4} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    id="duration"
+                    label="Duration (MM:SS)"
+                    placeholder="e.g., 30:00"
+                    value={duration ? formatDuration(duration) : ''}
+                    onChange={(e) => setDuration(parseTimeToSeconds(e.target.value))}
+                    error={!!errors.duration}
+                    helperText={errors.duration}
+                    size={isMobile ? "medium" : "small"}
+                  />
+                </Grid>
+                
+                <Grid item xs={isMobile ? 6 : 4} sm={6}>
+                  <FormControl fullWidth>
+                    <InputLabel id="intensity-label">Intensity</InputLabel>
+                    <Select
+                      labelId="intensity-label"
+                      id="intensity"
+                      value={intensity}
+                      label="Intensity"
+                      onChange={(e) => setIntensity(e.target.value)}
+                      size={isMobile ? "medium" : "small"}
+                    >
+                      <MenuItem value="low">Low</MenuItem>
+                      <MenuItem value="medium">Medium</MenuItem>
+                      <MenuItem value="high">High</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+            )}
+            
+            {/* Time Based Fields */}
+            {exerciseType === 'time_based' && (
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    required
+                    fullWidth
+                    id="duration"
+                    label="Duration (MM:SS)"
+                    placeholder="e.g., 01:30"
+                    value={duration ? formatDuration(duration) : ''}
+                    onChange={(e) => setDuration(parseTimeToSeconds(e.target.value))}
+                    error={!!errors.duration}
+                    helperText={errors.duration}
+                    size={isMobile ? "medium" : "small"}
+                  />
+                </Grid>
+              </Grid>
+            )}
+            
+            <Grid item xs={12} sx={{ mt: isMobile ? 3 : 2 }}>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                fullWidth={isMobile}
+                size={isMobile ? "large" : "medium"}
+                sx={isMobile ? { py: 1.5 } : {}}
+              >
+                Add Exercise
+              </Button>
+            </Grid>
           </Grid>
-        </Grid>
+          </Box>
+        </Paper>
       </Box>
-    </Box>
   );
 };
 
