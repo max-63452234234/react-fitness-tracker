@@ -102,7 +102,7 @@ const WeekView = ({
                       <>
                         {/* Multiple tracking type UI */}
                         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
                             <Tooltip title="Click to add">
                               <IconButton 
                                 onClick={() => handleToggleHabitLog(habit, date)}
@@ -112,26 +112,43 @@ const WeekView = ({
                                 <AddCircleIcon />
                               </IconButton>
                             </Tooltip>
-                            <Chip 
-                              label={getHabitCount(habit, date, habitLogs) || '0'} 
-                              color={isHabitCompleted(habit, date) ? 'success' : 'default'}
-                              size="small"
-                              sx={{ ml: 1 }}
-                            />
+                            
+                            {/* Display checkmarks based on count */}
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '80px' }}>
+                              {[...Array(getHabitCount(habit, date, habitLogs) || 0)].map((_, index) => (
+                                <CheckCircleIcon 
+                                  key={index} 
+                                  color="success" 
+                                  fontSize="small" 
+                                  sx={{ m: 0.25 }}
+                                />
+                              ))}
+                              {getHabitCount(habit, date, habitLogs) === 0 && (
+                                <CancelIcon 
+                                  sx={{ opacity: 0.3, m: 0.25 }} 
+                                  fontSize="small" 
+                                />
+                              )}
+                            </Box>
                           </Box>
-                          {habit.target_per_day > 0 && (
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={Math.min((getHabitCount(habit, date, habitLogs) / habit.target_per_day) * 100, 100)}
-                              sx={{ 
-                                width: '80%', 
-                                my: 0.5,
-                                borderRadius: 1,
-                                height: 6,
-                                bgcolor: 'rgba(0,0,0,0.05)'
-                              }}
-                            />
-                          )}
+                          
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                              {getHabitCount(habit, date, habitLogs) || 0}/{habit.target_per_day || 1}
+                            </Typography>
+                            {habit.target_per_day > 0 && (
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={Math.min((getHabitCount(habit, date, habitLogs) / habit.target_per_day) * 100, 100)}
+                                sx={{ 
+                                  width: '60px', 
+                                  borderRadius: 1,
+                                  height: 6,
+                                  bgcolor: 'rgba(0,0,0,0.05)'
+                                }}
+                              />
+                            )}
+                          </Box>
                         </Box>
                       </>
                     ) : (
