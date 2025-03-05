@@ -1,0 +1,12 @@
+{
+  "files": {
+    "main.js": "/react-fitness-tracker/static/js/main.a98bc030.js",
+    "static/js/198.6db01f89.chunk.js": "/react-fitness-tracker/static/js/198.6db01f89.chunk.js",
+    "index.html": "/react-fitness-tracker/index.html",
+    "main.a98bc030.js.map": "/react-fitness-tracker/static/js/main.a98bc030.js.map",
+    "198.6db01f89.chunk.js.map": "/react-fitness-tracker/static/js/198.6db01f89.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/js/main.a98bc030.js"
+  ]
+}
