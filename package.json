@@ -7,7 +7,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "find-logs": "node scripts/find-logs.js",
+    "remove-logs": "node scripts/remove-logs.js",
+    "comment-logs": "node scripts/remove-logs.js --comment",
+    "prepare-prod": "node scripts/remove-logs.js && npm run build"
   },
   "keywords": [],
   "author": "",
