@@ -349,19 +349,24 @@ const HabitTracker = () => {
             }])
             .select();
             
-          if (error) throw error;
+          if (error) {
+            console.error('Error creating habit log:', error);
+            throw error;
+          }
           
-          // Add new log to state
-          setHabitLogs([...habitLogs, data[0]]);
+          if (data && data[0]) {
+            // Add new log to state
+            setHabitLogs([...habitLogs, data[0]]);
+          } else {
+            console.error('No data returned from insert operation');
+            throw new Error('Failed to create habit log');
+          }
         }
       } else {
         // For multiple tracking type - increment count
         if (existingLog) {
-          // Increment count, up to target
-          const newCount = Math.min(
-            existingLog.count + 1, 
-            habit.target_per_day || 1
-          );
+          // Increment count, without limit to target (allow exceeding target)
+          const newCount = existingLog.count + 1;
           
           const { error } = await supabase
             .from('habit_logs')
@@ -396,10 +401,18 @@ const HabitTracker = () => {
             }])
             .select();
             
-          if (error) throw error;
+          if (error) {
+            console.error('Error creating habit log:', error);
+            throw error;
+          }
           
-          // Add new log to state
-          setHabitLogs([...habitLogs, data[0]]);
+          if (data && data[0]) {
+            // Add new log to state
+            setHabitLogs([...habitLogs, data[0]]);
+          } else {
+            console.error('No data returned from insert operation');
+            throw new Error('Failed to create habit log');
+          }
         }
       }
     } catch (error) {
@@ -605,6 +618,7 @@ const HabitTracker = () => {
               handleToggleHabitLog={handleToggleHabitLog}
               openNoteEditor={openNoteEditor}
               handleDeleteHabit={handleDeleteHabit}
+              habitLogs={habitLogs}
             />
           )}
           

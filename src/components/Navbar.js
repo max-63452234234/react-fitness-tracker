@@ -1,6 +1,30 @@
-import React from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, IconButton, Menu, MenuItem, Avatar } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { 
+  AppBar, 
+  Toolbar, 
+  Typography, 
+  Button, 
+  Box, 
+  IconButton, 
+  Menu, 
+  MenuItem, 
+  Avatar,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
+} from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import ListAltIcon from '@mui/icons-material/ListAlt';
+import MonitorWeightIcon from '@mui/icons-material/MonitorWeight';
+import RestaurantIcon from '@mui/icons-material/Restaurant';
+import FastfoodIcon from '@mui/icons-material/Fastfood';
+import CheckBoxIcon from '@mui/icons-material/CheckBox';
+import TimelineIcon from '@mui/icons-material/Timeline';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../index.js';
 
 /**
@@ -10,7 +34,9 @@ import { supabase } from '../index.js';
  */
 const Navbar = ({ session }) => {
   const navigate = useNavigate();
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  const location = useLocation();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const handleMenu = (event) => {
@@ -32,6 +58,27 @@ const Navbar = ({ session }) => {
     navigate('/profile');
   };
 
+  const toggleMobileDrawer = () => {
+    setMobileDrawerOpen(!mobileDrawerOpen);
+  };
+
+  const handleMobileNavigation = (path) => {
+    navigate(path);
+    setMobileDrawerOpen(false);
+  };
+
+  // Navigation items with their icons and paths
+  const navItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Workouts', icon: <FitnessCenterIcon />, path: '/workouts' },
+    { text: 'Templates', icon: <ListAltIcon />, path: '/workout-templates' },
+    { text: 'Weight', icon: <MonitorWeightIcon />, path: '/weight' },
+    { text: 'Macros', icon: <RestaurantIcon />, path: '/macros' },
+    { text: 'Meal Plans', icon: <FastfoodIcon />, path: '/meal-templates' },
+    { text: 'Habits', icon: <CheckBoxIcon />, path: '/habits' },
+    { text: 'Progress', icon: <TimelineIcon />, path: '/progress' },
+  ];
+
   return (
     <AppBar position="static" sx={{ bgcolor: '#2196f3', mb: 3 }}>
       <Toolbar>
@@ -52,6 +99,50 @@ const Navbar = ({ session }) => {
         {session ? (
           // Authenticated navigation
           <>
+            {/* Mobile menu button - only visible on small screens */}
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={toggleMobileDrawer}
+              sx={{ mr: 2, display: { xs: 'flex', md: 'none' } }}
+            >
+              <MenuIcon />
+            </IconButton>
+            
+            {/* Mobile navigation drawer */}
+            <Drawer
+              anchor="left"
+              open={mobileDrawerOpen}
+              onClose={toggleMobileDrawer}
+            >
+              <Box
+                sx={{ width: 250 }}
+                role="presentation"
+              >
+                <List>
+                  {navItems.map((item) => (
+                    <ListItem 
+                      button 
+                      key={item.text} 
+                      onClick={() => handleMobileNavigation(item.path)}
+                      selected={location.pathname === item.path}
+                      sx={{
+                        bgcolor: location.pathname === item.path ? 'rgba(33, 150, 243, 0.1)' : 'transparent',
+                        '&:hover': {
+                          bgcolor: 'rgba(33, 150, 243, 0.2)',
+                        }
+                      }}
+                    >
+                      <ListItemIcon>{item.icon}</ListItemIcon>
+                      <ListItemText primary={item.text} />
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            </Drawer>
+            
+            {/* Desktop navigation - only visible on medium and larger screens */}
             <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
               <Button color="inherit" component={Link} to="/dashboard">
                 Dashboard
