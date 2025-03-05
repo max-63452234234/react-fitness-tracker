@@ -76,3 +76,33 @@ To use a custom domain:
 ## Supabase Configuration
 
 Ensure your Supabase credentials are correctly set up in your environment.
+
+## Database Setup and Maintenance
+
+This application requires a specific database schema in Supabase. Follow these steps for initial setup or to fix database issues:
+
+1. Initial Setup:
+   Run the main SQL setup script in your Supabase SQL Editor:
+   ```sql
+   -- Run the contents of supabase-setup.sql
+   ```
+
+2. Apply Schema Updates:
+   If needed, apply additional schema updates:
+   ```sql
+   -- Run the contents of update-schema.sql
+   -- Run the contents of update-exercises-schema.sql
+   ```
+
+3. Fix Database Issues:
+   If you encounter database errors (especially with habit tracking), apply the fix script:
+   ```sql
+   -- Run the contents of fix-tracking-type.sql
+   ```
+
+Common database errors and solutions:
+
+- **"tracking_type column of habits table not found"**: This means the habits table is missing required columns. Run the fix-tracking-type.sql script in the Supabase SQL Editor.
+- **"Failed to save habit"**: This could indicate missing columns or indexes. Apply the fix-tracking-type.sql script.
+
+After applying database changes, restart your application to ensure the changes take effect.
