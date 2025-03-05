@@ -13,7 +13,8 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon
+  ListItemIcon,
+  Divider
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -26,6 +27,7 @@ import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../index.js';
+import ThemeSelector from './ThemeSelector';
 
 /**
  * Navigation bar component that adapts based on authentication state
@@ -170,10 +172,12 @@ const Navbar = ({ session }) => {
               </Button>
             </Box>
             
+            <ThemeSelector />
+            
             <IconButton
               onClick={handleMenu}
               size="small"
-              sx={{ ml: 2 }}
+              sx={{ ml: 1 }}
               aria-controls={open ? 'account-menu' : undefined}
               aria-haspopup="true"
               aria-expanded={open ? 'true' : undefined}

@@ -109,7 +109,7 @@ const Dashboard = () => {
       <Grid container spacing={3}>
         {/* Welcome Card */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <Paper sx={{ p: 3, mb: 2 }}>
             <Typography variant="h5" gutterBottom>
               Welcome{profile?.full_name ? `, ${profile.full_name}` : ''}!
             </Typography>
@@ -119,7 +119,65 @@ const Dashboard = () => {
           </Paper>
         </Grid>
         
-        {/* Quick Stats */}
+        {/* Quick Actions - Moved to top as requested */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Quick Actions
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item>
+                <Button 
+                  variant="contained" 
+                  component={Link} 
+                  to="/workouts"
+                  color="primary"
+                >
+                  Log Workout
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button 
+                  variant="contained" 
+                  component={Link} 
+                  to="/habits"
+                  color="secondary"
+                >
+                  Track Habits
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button 
+                  variant="contained" 
+                  component={Link} 
+                  to="/weight"
+                >
+                  Log Weight
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button 
+                  variant="contained" 
+                  component={Link} 
+                  to="/macros"
+                >
+                  Log Nutrition
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button 
+                  variant="outlined" 
+                  component={Link} 
+                  to="/progress"
+                >
+                  View Progress
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
+        </Grid>
+        
+        {/* Stats Cards */}
         <Grid item xs={12} md={4}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
@@ -237,52 +295,6 @@ const Dashboard = () => {
           </Card>
         </Grid>
         
-        {/* Quick Actions */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Actions
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item>
-                <Button 
-                  variant="contained" 
-                  component={Link} 
-                  to="/workouts"
-                >
-                  Log Workout
-                </Button>
-              </Grid>
-              <Grid item>
-                <Button 
-                  variant="contained" 
-                  component={Link} 
-                  to="/weight"
-                >
-                  Log Weight
-                </Button>
-              </Grid>
-              <Grid item>
-                <Button 
-                  variant="contained" 
-                  component={Link} 
-                  to="/macros"
-                >
-                  Log Nutrition
-                </Button>
-              </Grid>
-              <Grid item>
-                <Button 
-                  variant="outlined" 
-                  component={Link} 
-                  to="/progress"
-                >
-                  View Progress
-                </Button>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Grid>
       </Grid>
     </Box>
   );

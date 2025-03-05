@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { Container, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { supabase } from './index.js';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Components
 import Navbar from './components/Navbar.js';
@@ -58,10 +59,11 @@ function App() {
   };
 
   return (
-    <Router>
-      <CssBaseline />
-      <Navbar session={session} />
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <ThemeProvider>
+      <Router>
+        <CssBaseline />
+        <Navbar session={session} />
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={!session ? <Login /> : <Navigate to="/dashboard" />} />
@@ -130,8 +132,9 @@ function App() {
           {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Container>
-    </Router>
+        </Container>
+      </Router>
+    </ThemeProvider>
   );
 }
 
