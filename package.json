@@ -2,15 +2,12 @@
   "name": "fitness-tracker",
   "version": "1.0.0",
   "description": "A comprehensive fitness tracker application",
-  "homepage": "https://max-63452234234.github.io/react-fitness-tracker",
   "main": "index.js",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d build"
+    "eject": "react-scripts eject"
   },
   "keywords": [],
   "author": "",
