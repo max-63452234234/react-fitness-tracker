@@ -73,12 +73,11 @@ const Navbar = ({ session }) => {
   const navItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Workouts', icon: <FitnessCenterIcon />, path: '/workouts' },
-    { text: 'Templates', icon: <ListAltIcon />, path: '/workout-templates' },
+    { text: 'Habits', icon: <CheckBoxIcon />, path: '/habits' },
     { text: 'Weight', icon: <MonitorWeightIcon />, path: '/weight' },
     { text: 'Macros', icon: <RestaurantIcon />, path: '/macros' },
-    { text: 'Meal Plans', icon: <FastfoodIcon />, path: '/meal-templates' },
-    { text: 'Habits', icon: <CheckBoxIcon />, path: '/habits' },
     { text: 'Progress', icon: <TimelineIcon />, path: '/progress' },
+    // Settings and personalization moved to profile
   ];
 
   return (
@@ -152,20 +151,14 @@ const Navbar = ({ session }) => {
               <Button color="inherit" component={Link} to="/workouts">
                 Workouts
               </Button>
-              <Button color="inherit" component={Link} to="/workout-templates">
-                Templates
+              <Button color="inherit" component={Link} to="/habits">
+                Habits
               </Button>
               <Button color="inherit" component={Link} to="/weight">
                 Weight
               </Button>
               <Button color="inherit" component={Link} to="/macros">
                 Macros
-              </Button>
-              <Button color="inherit" component={Link} to="/meal-templates">
-                Meal Plans
-              </Button>
-              <Button color="inherit" component={Link} to="/habits">
-                Habits
               </Button>
               <Button color="inherit" component={Link} to="/progress">
                 Progress
@@ -203,6 +196,9 @@ const Navbar = ({ session }) => {
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
               <MenuItem onClick={handleProfile}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/workout-templates'); }}>Workout Templates</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/meal-templates'); }}>Meal Templates</MenuItem>
+              <Divider />
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </Menu>
           </>

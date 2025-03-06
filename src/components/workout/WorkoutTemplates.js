@@ -274,14 +274,15 @@ const WorkoutTemplates = () => {
         template_id: selectedTemplate.id,
         name: exerciseData.name.trim(),
         exercise_type: exerciseData.exercise_type,
-        order_index: orderIndex
+        order_index: orderIndex,
+        // Always include sets and reps as they're required by the database schema
+        sets: exerciseData.sets || 1,
+        reps: exerciseData.reps || 1
       };
       
       // Add type-specific fields
       if (exerciseData.exercise_type === 'weight_based') {
-        exerciseToInsert.sets = exerciseData.sets;
-        exerciseToInsert.reps = exerciseData.reps;
-        exerciseToInsert.weight = exerciseData.weight;
+        exerciseToInsert.weight = exerciseData.weight || 0;
       } else if (exerciseData.exercise_type === 'cardio_distance') {
         exerciseToInsert.distance = exerciseData.distance;
         exerciseToInsert.distance_unit = exerciseData.distance_unit;
@@ -290,7 +291,10 @@ const WorkoutTemplates = () => {
         }
       } else if (exerciseData.exercise_type === 'cardio_time' || 
                 exerciseData.exercise_type === 'time_based') {
-        exerciseToInsert.duration = exerciseData.duration;
+        // Make sure duration is a number
+        exerciseToInsert.duration = typeof exerciseData.duration === 'number' 
+          ? exerciseData.duration 
+          : parseInt(exerciseData.duration) || 0;
         if (exerciseData.intensity) {
           exerciseToInsert.intensity = exerciseData.intensity;
         }

@@ -11,9 +11,20 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Card,
+  CardContent,
+  CardActions,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon
 } from '@mui/material';
+import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
+import FastfoodIcon from '@mui/icons-material/Fastfood';
 import { supabase } from '../index.js';
+import { Link } from 'react-router-dom';
 
 /**
  * Profile component for viewing and updating user profile information
@@ -166,118 +177,178 @@ const Profile = () => {
         Profile
       </Typography>
       
-      <Paper sx={{ p: 4 }}>
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-        
-        {success && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            Profile updated successfully!
-          </Alert>
-        )}
-        
-        <Grid container spacing={3} component="form" onSubmit={handleSubmit}>
-          <Grid item xs={12}>
-            <Typography variant="subtitle1" gutterBottom>
-              Email: {user?.email}
-            </Typography>
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              required
-              fullWidth
-              label="Full Name"
-              name="full_name"
-              value={profile.full_name}
-              onChange={handleChange}
-              disabled={updating}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Age"
-              name="age"
-              type="number"
-              value={profile.age}
-              onChange={handleChange}
-              disabled={updating}
-              inputProps={{ min: 0 }}
-            />
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel id="gender-label">Gender</InputLabel>
-              <Select
-                labelId="gender-label"
-                id="gender"
-                name="gender"
-                value={profile.gender}
-                label="Gender"
-                onChange={handleChange}
-                disabled={updating}
-              >
-                <MenuItem value=""><em>Prefer not to say</em></MenuItem>
-                <MenuItem value="male">Male</MenuItem>
-                <MenuItem value="female">Female</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Height (cm)"
-              name="height"
-              type="number"
-              value={profile.height}
-              onChange={handleChange}
-              disabled={updating}
-              inputProps={{ min: 0 }}
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel id="fitness-goal-label">Fitness Goal</InputLabel>
-              <Select
-                labelId="fitness-goal-label"
-                id="fitness_goal"
-                name="fitness_goal"
-                value={profile.fitness_goal}
-                label="Fitness Goal"
-                onChange={handleChange}
-                disabled={updating}
-              >
-                <MenuItem value=""><em>None selected</em></MenuItem>
-                <MenuItem value="weight_loss">Weight Loss</MenuItem>
-                <MenuItem value="muscle_gain">Muscle Gain</MenuItem>
-                <MenuItem value="endurance">Endurance</MenuItem>
-                <MenuItem value="general_fitness">General Fitness</MenuItem>
-                <MenuItem value="strength">Strength</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sx={{ mt: 2 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={updating}
-              sx={{ mr: 2 }}
-            >
-              {updating ? <CircularProgress size={24} /> : 'Update Profile'}
-            </Button>
-          </Grid>
+      <Grid container spacing={3}>
+        <Grid item xs={12} md={7}>
+          <Paper sx={{ p: 4 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
+            
+            {success && (
+              <Alert severity="success" sx={{ mb: 3 }}>
+                Profile updated successfully!
+              </Alert>
+            )}
+            
+            <Grid container spacing={3} component="form" onSubmit={handleSubmit}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Email: {user?.email}
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  label="Full Name"
+                  name="full_name"
+                  value={profile.full_name}
+                  onChange={handleChange}
+                  disabled={updating}
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Age"
+                  name="age"
+                  type="number"
+                  value={profile.age}
+                  onChange={handleChange}
+                  disabled={updating}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel id="gender-label">Gender</InputLabel>
+                  <Select
+                    labelId="gender-label"
+                    id="gender"
+                    name="gender"
+                    value={profile.gender}
+                    label="Gender"
+                    onChange={handleChange}
+                    disabled={updating}
+                  >
+                    <MenuItem value=""><em>Prefer not to say</em></MenuItem>
+                    <MenuItem value="male">Male</MenuItem>
+                    <MenuItem value="female">Female</MenuItem>
+                    <MenuItem value="other">Other</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Height (cm)"
+                  name="height"
+                  type="number"
+                  value={profile.height}
+                  onChange={handleChange}
+                  disabled={updating}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+              
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel id="fitness-goal-label">Fitness Goal</InputLabel>
+                  <Select
+                    labelId="fitness-goal-label"
+                    id="fitness_goal"
+                    name="fitness_goal"
+                    value={profile.fitness_goal}
+                    label="Fitness Goal"
+                    onChange={handleChange}
+                    disabled={updating}
+                  >
+                    <MenuItem value=""><em>None selected</em></MenuItem>
+                    <MenuItem value="weight_loss">Weight Loss</MenuItem>
+                    <MenuItem value="muscle_gain">Muscle Gain</MenuItem>
+                    <MenuItem value="endurance">Endurance</MenuItem>
+                    <MenuItem value="general_fitness">General Fitness</MenuItem>
+                    <MenuItem value="strength">Strength</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12} sx={{ mt: 2 }}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  disabled={updating}
+                  sx={{ mr: 2 }}
+                >
+                  {updating ? <CircularProgress size={24} /> : 'Update Profile'}
+                </Button>
+              </Grid>
+            </Grid>
+          </Paper>
         </Grid>
-      </Paper>
+        
+        {/* Templates and Personalization Section */}
+        <Grid item xs={12} md={5}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Your Templates & Settings
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              <List disablePadding>
+                <ListItem component={Link} to="/workout-templates" sx={{ 
+                  textDecoration: 'none', 
+                  color: 'inherit',
+                  borderRadius: 1,
+                  '&:hover': { bgcolor: 'rgba(33, 150, 243, 0.1)' }
+                }}>
+                  <ListItemIcon>
+                    <FitnessCenterIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Workout Templates" 
+                    secondary="Manage your workout routines"
+                  />
+                </ListItem>
+                
+                <ListItem component={Link} to="/meal-templates" sx={{ 
+                  textDecoration: 'none', 
+                  color: 'inherit',
+                  borderRadius: 1,
+                  '&:hover': { bgcolor: 'rgba(33, 150, 243, 0.1)' }
+                }}>
+                  <ListItemIcon>
+                    <FastfoodIcon color="primary" />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Meal Templates" 
+                    secondary="Manage your meal plans"
+                  />
+                </ListItem>
+              </List>
+            </CardContent>
+            <CardActions>
+              <Button 
+                component={Link} 
+                to="/workouts"
+                variant="contained" 
+                color="primary" 
+                fullWidth
+                sx={{ mt: 1 }}
+              >
+                Log Workout
+              </Button>
+            </CardActions>
+          </Card>
+        </Grid>
+      </Grid>
     </Box>
   );
 };

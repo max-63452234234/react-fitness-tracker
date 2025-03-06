@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -43,6 +43,7 @@ import {
   calculateYearlyCompletionRates,
   isHabitCompleted as checkHabitCompleted,
   getHabitNote as getHabitNoteText,
+  getHabitCount,
   colorOptions
 } from './utils/habitUtils';
 
@@ -319,60 +320,94 @@ const HabitTracker = () => {
         log.habit_id === habit.id && log.date === dateStr
       );
       
-      if (habit.tracking_type === 'daily') {
-        // For daily tracking type - toggle completion
-        if (existingLog) {
-          // Toggle the completion status if the log exists
+      if (existingLog) {
+        // Always increment count
+        const newCount = existingLog.count + 1;
+        
+        const { error } = await supabase
+          .from('habit_logs')
+          .update({ 
+            completed: true,
+            count: newCount
+          })
+          .eq('id', existingLog.id);
+          
+        if (error) throw error;
+        
+        // Update log in state
+        setHabitLogs(habitLogs.map(log => 
+          log.id === existingLog.id 
+            ? { 
+                ...log, 
+                completed: true,
+                count: newCount
+              } 
+            : log
+        ));
+      } else {
+        // Create a new log if it doesn't exist
+        const { data, error } = await supabase
+          .from('habit_logs')
+          .insert([{
+            habit_id: habit.id,
+            date: dateStr,
+            completed: true, // Default to completed when created
+            count: 1,
+            notes: ''
+          }])
+          .select();
+          
+        if (error) {
+          console.error('Error creating habit log:', error);
+          throw error;
+        }
+        
+        if (data && data[0]) {
+          // Add new log to state
+          setHabitLogs([...habitLogs, data[0]]);
+        } else {
+          console.error('No data returned from insert operation');
+          throw new Error('Failed to create habit log');
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling habit log:', error.message);
+      setError('Failed to update habit log. Please try again.');
+    }
+  };
+  
+  // Handler for decrementing habit count
+  const handleDecrementHabitCount = async (habit, date) => {
+    try {
+      const dateStr = format(date, 'yyyy-MM-dd');
+      
+      // Check if a log exists for this habit and date
+      const existingLog = habitLogs.find(log => 
+        log.habit_id === habit.id && log.date === dateStr
+      );
+      
+      if (existingLog && existingLog.count > 0) {
+        const newCount = existingLog.count - 1;
+        
+        // If count becomes 0, decide whether to delete the log or keep it with notes
+        if (newCount === 0 && !existingLog.notes) {
+          // Delete the log if there are no notes
           const { error } = await supabase
             .from('habit_logs')
-            .update({ completed: !existingLog.completed })
+            .delete()
             .eq('id', existingLog.id);
             
           if (error) throw error;
           
-          // Update log in state
-          setHabitLogs(habitLogs.map(log => 
-            log.id === existingLog.id 
-              ? { ...log, completed: !existingLog.completed } 
-              : log
-          ));
+          // Remove log from state
+          setHabitLogs(habitLogs.filter(log => log.id !== existingLog.id));
         } else {
-          // Create a new log if it doesn't exist
-          const { data, error } = await supabase
-            .from('habit_logs')
-            .insert([{
-              habit_id: habit.id,
-              date: dateStr,
-              completed: true, // Default to completed when created
-              count: 1,
-              notes: ''
-            }])
-            .select();
-            
-          if (error) {
-            console.error('Error creating habit log:', error);
-            throw error;
-          }
-          
-          if (data && data[0]) {
-            // Add new log to state
-            setHabitLogs([...habitLogs, data[0]]);
-          } else {
-            console.error('No data returned from insert operation');
-            throw new Error('Failed to create habit log');
-          }
-        }
-      } else {
-        // For multiple tracking type - increment count without limit
-        if (existingLog) {
-          // Always increment count, even beyond target (allow exceeding target)
-          const newCount = existingLog.count + 1;
-          
+          // Update the log with decremented count
           const { error } = await supabase
             .from('habit_logs')
             .update({ 
               count: newCount,
-              completed: newCount >= (habit.target_per_day || 1) // Mark as completed if count reaches target
+              completed: newCount >= (habit.target_per_day || 1) // Update completion status
             })
             .eq('id', existingLog.id);
             
@@ -384,42 +419,17 @@ const HabitTracker = () => {
               ? { 
                   ...log, 
                   count: newCount,
-                  completed: true // Always mark as completed for visual feedback
+                  completed: newCount >= (habit.target_per_day || 1)
                 } 
               : log
           ));
-          
-          setError(null); // Clear any previous errors
-        } else {
-          // Create a new log if it doesn't exist
-          const { data, error } = await supabase
-            .from('habit_logs')
-            .insert([{
-              habit_id: habit.id,
-              date: dateStr,
-              completed: true, // Always mark as completed for visual feedback
-              count: 1, // Start with 1 count
-              notes: ''
-            }])
-            .select();
-            
-          if (error) {
-            console.error('Error creating habit log:', error);
-            throw error;
-          }
-          
-          if (data && data[0]) {
-            // Add new log to state
-            setHabitLogs([...habitLogs, data[0]]);
-          } else {
-            console.error('No data returned from insert operation');
-            throw new Error('Failed to create habit log');
-          }
         }
+        
+        setError(null); // Clear any previous errors
       }
     } catch (error) {
-      console.error('Error toggling habit log:', error.message);
-      setError('Failed to update habit log. Please try again.');
+      console.error('Error decrementing habit count:', error.message);
+      setError('Failed to update habit count. Please try again.');
     }
   };
   
@@ -620,6 +630,7 @@ const HabitTracker = () => {
               handleToggleHabitLog={handleToggleHabitLog}
               openNoteEditor={openNoteEditor}
               handleDeleteHabit={handleDeleteHabit}
+              handleDecrementHabitCount={handleDecrementHabitCount}
               habitLogs={habitLogs}
             />
           )}
@@ -631,6 +642,7 @@ const HabitTracker = () => {
               currentDate={currentDate}
               isHabitCompleted={isHabitCompleted}
               handleToggleHabitLog={handleToggleHabitLog}
+              habitLogs={habitLogs}
             />
           )}
           

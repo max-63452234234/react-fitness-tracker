@@ -21,23 +21,7 @@ import TodayIcon from '@mui/icons-material/Today';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import { format, isToday } from 'date-fns';
-
-/**
- * Get habit log count from habitLogs array
- * @param {Object} habit - The habit object
- * @param {Date} date - The date to check 
- * @param {Array} habitLogs - Array of habit logs
- * @returns {number} The count of the habit for the specified date
- */
-const getHabitCount = (habit, date, habitLogs) => {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
-  const log = habitLogs.find(log => 
-    log.habit_id === habit.id && log.date === dateStr
-  );
-  
-  return log ? log.count : 0;
-};
+import { getHabitCount as getCount } from '../utils/habitUtils';
 
 /**
  * Weekly view for habit tracking
@@ -50,19 +34,31 @@ const WeekView = ({
   handleToggleHabitLog, 
   openNoteEditor,
   handleDeleteHabit,
+  handleDecrementHabitCount,
   habitLogs = []
 }) => {
+  // For backward compatibility
+  const getHabitCount = getCount;
+  
+  // Call the parent component's handler for decrementing
+  const handleDecrement = (habit, date) => {
+    if (getCount(habit, date, habitLogs) > 0) {
+      handleDecrementHabitCount(habit, date);
+    }
+  };
   return (
     <TableContainer component={Paper}>
       <Table>
         <TableHead>
           <TableRow>
-            <TableCell>Habit</TableCell>
+            <TableCell>
+              <Typography variant="h6" sx={{ fontWeight: 'bold' }}>Habit</Typography>
+            </TableCell>
             {dateRange.map(date => (
               <TableCell key={date.toString()} align="center" 
                 sx={isToday(date) ? { bgcolor: 'primary.light', color: 'white' } : {}}>
-                <Typography variant="body2">{format(date, 'EEE')}</Typography>
-                <Typography variant="subtitle2">{format(date, 'd MMM')}</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 'medium' }}>{format(date, 'EEE')}</Typography>
+                <Typography variant="h6">{format(date, 'd MMM')}</Typography>
               </TableCell>
             ))}
           </TableRow>
@@ -75,14 +71,16 @@ const WeekView = ({
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <Box 
                       sx={{ 
-                        width: 12, 
-                        height: 12, 
+                        width: 16, 
+                        height: 16, 
                         borderRadius: '50%', 
                         bgcolor: habit.color || '#2196f3',
                         mr: 1 
                       }} 
                     />
-                    {habit.name}
+                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                      {habit.name}
+                    </Typography>
                   </Box>
                   <Tooltip title="Delete habit">
                     <IconButton 
@@ -102,80 +100,110 @@ const WeekView = ({
                       <>
                         {/* Multiple tracking type UI */}
                         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-                            <Tooltip title="Click to add">
-                              <IconButton 
-                                onClick={() => handleToggleHabitLog(habit, date)}
-                                color="primary"
-                                size="small"
-                              >
-                                <AddCircleIcon />
-                              </IconButton>
-                            </Tooltip>
-                            
-                            {/* Display checkmarks based on count */}
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', maxWidth: '80px' }}>
-                              {[...Array(getHabitCount(habit, date, habitLogs) || 0)].map((_, index) => (
-                                <CheckCircleIcon 
-                                  key={index} 
-                                  color="success" 
-                                  fontSize="small" 
-                                  sx={{ m: 0.25 }}
-                                />
-                              ))}
-                              {getHabitCount(habit, date, habitLogs) === 0 && (
-                                <CancelIcon 
-                                  sx={{ opacity: 0.3, m: 0.25 }} 
-                                  fontSize="small" 
-                                />
-                              )}
-                            </Box>
+                          {/* Simple square counter with habit color */}
+                          <Box
+                            onClick={() => handleToggleHabitLog(habit, date)}
+                            sx={{
+                              width: '60px',
+                              height: '60px',
+                              display: 'flex',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              backgroundColor: getCount(habit, date, habitLogs) >= (habit.target_per_day || 1) 
+                                ? 'success.main' 
+                                : (getCount(habit, date, habitLogs) > 0 ? habit.color : '#f5f5f5'),
+                              color: getCount(habit, date, habitLogs) > 0 ? 'white' : 'text.secondary',
+                              border: '2px solid',
+                              borderColor: getCount(habit, date, habitLogs) > 0 ? 'transparent' : 'divider',
+                              cursor: 'pointer',
+                              userSelect: 'none',
+                              transition: 'all 0.15s ease-in-out',
+                              '&:hover': {
+                                transform: 'scale(1.05)',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                              },
+                              '&:active': {
+                                transform: 'scale(0.95)'
+                              }
+                            }}
+                          >
+                            <Typography 
+                              variant="body1" 
+                              component="span"
+                              align="center" 
+                              sx={{ 
+                                fontWeight: 'medium',
+                                fontSize: '14px'
+                              }}
+                            >
+                              {getCount(habit, date, habitLogs) || 0}
+                            </Typography>
                           </Box>
                           
-                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
-                              {getHabitCount(habit, date, habitLogs) || 0}/{habit.target_per_day || 1}
-                            </Typography>
-                            {habit.target_per_day > 0 && (
-                              <LinearProgress 
-                                variant="determinate" 
-                                value={Math.min((getHabitCount(habit, date, habitLogs) / habit.target_per_day) * 100, 100)}
-                                sx={{ 
-                                  width: '60px', 
-                                  borderRadius: 1,
-                                  height: 6,
-                                  bgcolor: 'rgba(0,0,0,0.05)'
-                                }}
-                              />
-                            )}
+                          {/* Right-click to decrement option */}
+                          <Box 
+                            component="div"
+                            sx={{ 
+                              mt: 1, 
+                              color: 'text.secondary',
+                              fontSize: '0.9rem',
+                              fontWeight: 'medium',
+                              cursor: 'pointer' 
+                            }}
+                            onClick={(e) => {
+                              if (getCount(habit, date, habitLogs) > 0) {
+                                handleDecrement(habit, date);
+                              }
+                            }}
+                          >
+                            {getCount(habit, date, habitLogs) > 0 ? 'click to -1' : ''}
                           </Box>
                         </Box>
                       </>
                     ) : (
                       <>
-                        {/* Daily tracking type UI */}
-                        <IconButton 
+                        {/* Daily tracking type UI - using counter just like multiple habits */}
+                        <Box
                           onClick={() => handleToggleHabitLog(habit, date)}
-                          color={isHabitCompleted(habit, date) ? 'success' : 'default'}
-                          sx={{ p: 1 }}
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            width: '60px',
+                            height: '60px',
+                            border: '2px solid',
+                            borderColor: isHabitCompleted(habit, date) ? 'transparent' : 'divider',
+                            backgroundColor: isHabitCompleted(habit, date)
+                              ? habit.color || 'success.main'
+                              : '#f5f5f5',
+                            color: isHabitCompleted(habit, date) ? 'white' : 'text.secondary',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.05)',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                            },
+                            '&:active': {
+                              transform: 'scale(0.95)'
+                            }
+                          }}
                         >
-                          {isHabitCompleted(habit, date) ? 
-                            <CheckCircleIcon /> : 
-                            <CancelIcon sx={{ opacity: 0.3 }} />
-                          }
-                        </IconButton>
+                          <Typography 
+                            variant="body1" 
+                            component="span"
+                            align="center" 
+                            sx={{ 
+                              fontWeight: 'medium',
+                              fontSize: '14px'
+                            }}
+                          >
+                            {getCount(habit, date, habitLogs) || 0}
+                          </Typography>
+                        </Box>
                       </>
                     )}
                     
-                    <Tooltip title={getHabitNote(habit, date) || 'Add note'}>
-                      <IconButton 
-                        size="small" 
-                        onClick={() => openNoteEditor(habit, date)}
-                        sx={getHabitNote(habit, date) ? { color: 'text.secondary' } : { opacity: 0.3 }}
-                      >
-                        <TodayIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    {/* Notes feature removed as requested */}
                   </Box>
                 </TableCell>
               ))}

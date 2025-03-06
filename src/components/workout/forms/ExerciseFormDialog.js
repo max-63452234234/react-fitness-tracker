@@ -95,9 +95,10 @@ const ExerciseFormDialog = ({
     
     if (timeStr.includes(':')) {
       const [minutes, seconds] = timeStr.split(':').map(Number);
-      return minutes * 60 + seconds;
+      return (isNaN(minutes) ? 0 : minutes) * 60 + (isNaN(seconds) ? 0 : seconds);
     } else {
-      return parseInt(timeStr) * 60; // If only number entered, assume minutes
+      const mins = parseInt(timeStr);
+      return isNaN(mins) ? 0 : mins * 60; // If only number entered, assume minutes
     }
   };
 
@@ -106,7 +107,10 @@ const ExerciseFormDialog = ({
     // Create exercise data based on type
     const exerciseData = {
       ...currentExercise,
-      exercise_type: exerciseType
+      exercise_type: exerciseType,
+      // Always provide sets and reps with defaults if not explicitly set
+      sets: currentExercise.sets || 1,
+      reps: currentExercise.reps || 1
     };
     
     // Add type-specific fields
@@ -114,11 +118,15 @@ const ExerciseFormDialog = ({
       exerciseData.distance = parseFloat(distance);
       exerciseData.distance_unit = distanceUnit;
       exerciseData.duration = duration ? parseTimeToSeconds(duration) : null;
+      exerciseData.weight = 0; // Default
     } else if (exerciseType === 'cardio_time' || exerciseType === 'time_based') {
       exerciseData.duration = parseTimeToSeconds(duration);
+      exerciseData.weight = 0; // Default
       if (exerciseType === 'cardio_time') {
         exerciseData.intensity = intensity;
       }
+    } else if (exerciseType === 'weight_based') {
+      exerciseData.weight = currentExercise.weight || 0;
     }
     
     handleAddExercise(exerciseData);

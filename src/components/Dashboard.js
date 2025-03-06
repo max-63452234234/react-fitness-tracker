@@ -12,10 +12,16 @@ import {
   ListItem, 
   ListItemText, 
   Divider,
-  CircularProgress
+  CircularProgress,
+  IconButton,
+  Alert,
+  AlertTitle,
+  Chip
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { Link } from 'react-router-dom';
 import { supabase } from '../index.js';
+import { format } from 'date-fns';
 
 /**
  * Dashboard component
@@ -27,6 +33,10 @@ const Dashboard = () => {
   const [recentWorkouts, setRecentWorkouts] = useState([]);
   const [weightEntries, setWeightEntries] = useState([]);
   const [macroEntries, setMacroEntries] = useState([]);
+  const [habits, setHabits] = useState([]);
+  const [habitLogs, setHabitLogs] = useState([]);
+  const [showWelcome, setShowWelcome] = useState(localStorage.getItem('hideWelcome') !== 'true');
+  const [loadingHabitUpdate, setLoadingHabitUpdate] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -82,6 +92,28 @@ const Dashboard = () => {
         if (macroData) {
           setMacroEntries(macroData);
         }
+        
+        // Fetch habits
+        const { data: habitsData } = await supabase
+          .from('habits')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('name');
+          
+        if (habitsData) {
+          setHabits(habitsData);
+        }
+        
+        // Fetch today's habit logs
+        const today = new Date().toISOString().split('T')[0];
+        const { data: habitLogsData } = await supabase
+          .from('habit_logs')
+          .select('*')
+          .eq('date', today);
+          
+        if (habitLogsData) {
+          setHabitLogs(habitLogsData);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -100,6 +132,81 @@ const Dashboard = () => {
     );
   }
 
+  // Function to handle habit tracking directly from dashboard
+  const handleToggleHabit = async (habit) => {
+    try {
+      setLoadingHabitUpdate(true);
+      const todayDate = new Date().toISOString().split('T')[0];
+      
+      // Check if a log exists for this habit today
+      const existingLog = habitLogs.find(log => 
+        log.habit_id === habit.id && log.date === todayDate
+      );
+      
+      if (existingLog) {
+        // Always increment count
+        const newCount = existingLog.count + 1;
+        
+        const { error } = await supabase
+          .from('habit_logs')
+          .update({ 
+            completed: true,
+            count: newCount
+          })
+          .eq('id', existingLog.id);
+          
+        if (error) throw error;
+        
+        // Update log in state
+        setHabitLogs(habitLogs.map(log => 
+          log.id === existingLog.id 
+            ? { 
+                ...log, 
+                completed: true,
+                count: newCount
+              } 
+            : log
+        ));
+      } else {
+        // Create a new log if it doesn't exist
+        const { data, error } = await supabase
+          .from('habit_logs')
+          .insert([{
+            habit_id: habit.id,
+            date: todayDate,
+            completed: true,
+            count: 1,
+            notes: ''
+          }])
+          .select();
+          
+        if (error) throw error;
+        
+        if (data && data[0]) {
+          // Add new log to state
+          setHabitLogs([...habitLogs, data[0]]);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating habit:', error);
+    } finally {
+      setLoadingHabitUpdate(false);
+    }
+  };
+  
+  // Function to hide welcome message permanently
+  const handleHideWelcome = () => {
+    localStorage.setItem('hideWelcome', 'true');
+    setShowWelcome(false);
+  };
+  
+  // Function to get habit count for today
+  const getHabitCount = (habitId) => {
+    const todayDate = new Date().toISOString().split('T')[0];
+    const log = habitLogs.find(log => log.habit_id === habitId && log.date === todayDate);
+    return log ? log.count : 0;
+  };
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Typography variant="h4" component="h1" gutterBottom>
@@ -107,19 +214,130 @@ const Dashboard = () => {
       </Typography>
       
       <Grid container spacing={3}>
-        {/* Welcome Card */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3, mb: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Welcome{profile?.full_name ? `, ${profile.full_name}` : ''}!
-            </Typography>
-            <Typography variant="body1">
+        {/* Welcome Card - Only shows if not dismissed */}
+        {showWelcome && (
+          <Grid item xs={12}>
+            <Alert 
+              severity="info"
+              sx={{ mb: 2 }}
+              action={
+                <IconButton
+                  aria-label="close"
+                  color="inherit"
+                  size="small"
+                  onClick={handleHideWelcome}
+                >
+                  <CloseIcon fontSize="inherit" />
+                </IconButton>
+              }
+            >
+              <AlertTitle>Welcome{profile?.full_name ? `, ${profile.full_name}` : ''}!</AlertTitle>
               Track your fitness journey, monitor your progress, and achieve your goals with Fitness Tracker.
-            </Typography>
-          </Paper>
-        </Grid>
+            </Alert>
+          </Grid>
+        )}
         
-        {/* Quick Actions - Moved to top as requested */}
+        {/* Quick Habit Tracking Widget - First on screen */}
+        {habits.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Today's Habits ({format(new Date(), 'EEEE, MMM d')})
+                </Typography>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  {habits.map(habit => (
+                    <Grid item key={habit.id}>
+                      <Box
+                        onClick={() => handleToggleHabit(habit)}
+                        sx={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          p: 1,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          width: '80px',
+                          height: '80px',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          backgroundColor: getHabitCount(habit.id) > 0 
+                            ? (getHabitCount(habit.id) >= (habit.target_per_day || 1) ? 'success.main' : habit.color) 
+                            : 'background.paper',
+                          transition: 'transform 0.2s',
+                          '&:hover': {
+                            transform: 'scale(1.05)',
+                            boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                          }
+                        }}
+                      >
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            textAlign: 'center',
+                            fontWeight: 'medium',
+                            mb: 1,
+                            color: getHabitCount(habit.id) > 0 ? 'white' : 'text.primary',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            width: '100%'
+                          }}
+                        >
+                          {habit.name}
+                        </Typography>
+                        
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          width: '30px',
+                          height: '30px',
+                          borderRadius: '50%',
+                          bgcolor: getHabitCount(habit.id) > 0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)',
+                          color: getHabitCount(habit.id) > 0 ? 'white' : 'text.secondary'
+                        }}>
+                          <Typography sx={{ fontSize: '14px', fontWeight: 'medium' }}>
+                            {getHabitCount(habit.id)}
+                          </Typography>
+                        </Box>
+                        
+                        {habit.tracking_type === 'multiple' && habit.target_per_day > 1 && (
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              position: 'absolute',
+                              bottom: 2,
+                              right: 4,
+                              color: getHabitCount(habit.id) > 0 ? 'white' : 'text.secondary',
+                              opacity: 0.8
+                            }}
+                          >
+                            /{habit.target_per_day}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+              <CardActions>
+                <Button 
+                  component={Link} 
+                  to="/habits" 
+                  size="small" 
+                  color="primary"
+                >
+                  Go to Habit Tracker
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        )}
+        
+        {/* Quick Actions */}
         <Grid item xs={12}>
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="h6" gutterBottom>

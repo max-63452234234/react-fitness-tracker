@@ -18,7 +18,9 @@ import {
   DialogActions,
   TextField,
   IconButton,
-  Alert
+  Alert,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -26,6 +28,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import { supabase } from '../../index.js';
 import WorkoutForm from './WorkoutForm.js';
 import ExerciseForm from './ExerciseForm.js';
+import MobileWorkoutCard from './MobileWorkoutCard.js';
+import { Link } from 'react-router-dom';
 
 /**
  * WorkoutLog component for tracking user workouts
@@ -43,6 +47,11 @@ const WorkoutLog = () => {
   const [error, setError] = useState(null);
   const [userId, setUserId] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  const [expandedCardId, setExpandedCardId] = useState(null);
+  
+  // Theme and media query for responsive design
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     // Get current user and fetch workouts
@@ -288,6 +297,15 @@ const WorkoutLog = () => {
     );
   }
 
+  // Get exercises for a specific workout
+  const getExercisesForWorkout = (workoutId) => {
+    return workouts.find(w => w.id === workoutId)?.exercises || [];
+  };
+
+  const handleToggleExpandCard = (workoutId) => {
+    setExpandedCardId(expandedCardId === workoutId ? null : workoutId);
+  };
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
@@ -307,6 +325,19 @@ const WorkoutLog = () => {
         </Grid>
       </Grid>
       
+      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
+        <Grid item>
+          <Button 
+            variant="outlined" 
+            color="primary"
+            component={Link}
+            to="/workout-templates"
+          >
+            Use Template
+          </Button>
+        </Grid>
+      </Grid>
+      
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
@@ -319,7 +350,26 @@ const WorkoutLog = () => {
             You haven't logged any workouts yet. Click "Add Workout" to get started!
           </Typography>
         </Paper>
+      ) : isMobile ? (
+        // Mobile view - use cards instead of table
+        <Box>
+          {workouts.map((workout) => (
+            <MobileWorkoutCard
+              key={workout.id}
+              workout={workout}
+              exercises={exercises.filter(e => e.workout_id === workout.id)}
+              onEdit={() => handleOpenWorkoutForm(workout)}
+              onDelete={() => handleDeleteWorkout(workout.id)}
+              onAddExercise={() => handleViewExercises(workout)}
+              formatDate={formatDate}
+              formatDuration={formatDuration}
+              expanded={expandedCardId === workout.id}
+              onExpand={() => handleToggleExpandCard(workout.id)}
+            />
+          ))}
+        </Box>
       ) : (
+        // Desktop view - use table
         <TableContainer component={Paper}>
           <Table>
             <TableHead>

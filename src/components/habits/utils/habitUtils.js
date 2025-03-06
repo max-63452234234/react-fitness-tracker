@@ -68,6 +68,24 @@ export const getCompletionColor = (percentage) => {
 };
 
 /**
+ * Get habit count for a specific date
+ * 
+ * @param {Object} habit - Habit object
+ * @param {Date} date - Date to check
+ * @param {Array} habitLogs - List of habit log entries
+ * @returns {number} - Count for this habit on this date
+ */
+export const getHabitCount = (habit, date, habitLogs) => {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  
+  const log = habitLogs.find(log => 
+    log.habit_id === habit.id && log.date === dateStr
+  );
+  
+  return log ? log.count || 0 : 0;
+};
+
+/**
  * Check if a habit is completed on a specific date
  * 
  * @param {Object} habit - Habit object
