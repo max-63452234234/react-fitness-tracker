@@ -313,11 +313,14 @@ const Dashboard = () => {
                           textAlign: 'center',
                           fontWeight: 'medium',
                           mt: 1,
-                          maxWidth: '80px',
+                          maxWidth: '85px',
+                          minHeight: '32px',
                           color: 'text.secondary',
-                          whiteSpace: 'nowrap',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
+                          lineHeight: '1.2',
                           width: '100%'
                         }}
                       >
