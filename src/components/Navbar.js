@@ -81,8 +81,19 @@ const Navbar = ({ session }) => {
   ];
 
   return (
-    <AppBar position="static" sx={{ bgcolor: '#2196f3', mb: 3 }}>
-      <Toolbar>
+    <AppBar 
+      position="static" 
+      elevation={0}
+      sx={{ 
+        background: 'linear-gradient(90deg, #2196f3 0%, #42a5f5 100%)',
+        mb: 3,
+        borderRadius: { xs: 0, sm: '0 0 16px 16px' },
+        maxWidth: { sm: '98%', lg: '94%' },
+        mx: { sm: 'auto' },
+        mt: { sm: '8px' },
+      }}
+    >
+      <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
         <Typography 
           variant="h6" 
           component={Link} 
@@ -91,7 +102,9 @@ const Navbar = ({ session }) => {
             flexGrow: 1, 
             color: 'white', 
             textDecoration: 'none',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            letterSpacing: '0.5px',
+            fontSize: { xs: '1.1rem', sm: '1.25rem' }
           }}
         >
           Fitness Tracker
@@ -116,12 +129,32 @@ const Navbar = ({ session }) => {
               anchor="left"
               open={mobileDrawerOpen}
               onClose={toggleMobileDrawer}
+              PaperProps={{
+                sx: {
+                  borderRadius: '0 16px 16px 0',
+                  overflow: 'hidden'
+                }
+              }}
             >
               <Box
-                sx={{ width: 250 }}
+                sx={{ 
+                  width: 280,
+                  bgcolor: (theme) => theme.palette.background.paper,
+                }}
                 role="presentation"
               >
-                <List>
+                <Box sx={{ 
+                  p: 2, 
+                  background: 'linear-gradient(90deg, #2196f3 0%, #42a5f5 100%)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Fitness Tracker
+                  </Typography>
+                </Box>
+                <List sx={{ py: 1 }}>
                   {navItems.map((item) => (
                     <ListItem 
                       button 
@@ -129,14 +162,33 @@ const Navbar = ({ session }) => {
                       onClick={() => handleMobileNavigation(item.path)}
                       selected={location.pathname === item.path}
                       sx={{
+                        my: 0.5,
+                        mx: 1,
+                        borderRadius: 2,
                         bgcolor: location.pathname === item.path ? 'rgba(33, 150, 243, 0.1)' : 'transparent',
                         '&:hover': {
-                          bgcolor: 'rgba(33, 150, 243, 0.2)',
+                          bgcolor: 'rgba(33, 150, 243, 0.1)',
+                        },
+                        '&.Mui-selected': {
+                          bgcolor: 'rgba(33, 150, 243, 0.15)',
+                          '&:hover': {
+                            bgcolor: 'rgba(33, 150, 243, 0.2)',
+                          }
                         }
                       }}
                     >
-                      <ListItemIcon>{item.icon}</ListItemIcon>
-                      <ListItemText primary={item.text} />
+                      <ListItemIcon sx={{ 
+                        color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
+                        minWidth: 40
+                      }}>
+                        {item.icon}
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={item.text} 
+                        primaryTypographyProps={{ 
+                          fontWeight: location.pathname === item.path ? 500 : 400
+                        }}
+                      />
                     </ListItem>
                   ))}
                 </List>
@@ -144,25 +196,30 @@ const Navbar = ({ session }) => {
             </Drawer>
             
             {/* Desktop navigation - only visible on medium and larger screens */}
-            <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
-              <Button color="inherit" component={Link} to="/dashboard">
-                Dashboard
-              </Button>
-              <Button color="inherit" component={Link} to="/workouts">
-                Workouts
-              </Button>
-              <Button color="inherit" component={Link} to="/habits">
-                Habits
-              </Button>
-              <Button color="inherit" component={Link} to="/weight">
-                Weight
-              </Button>
-              <Button color="inherit" component={Link} to="/macros">
-                Macros
-              </Button>
-              <Button color="inherit" component={Link} to="/progress">
-                Progress
-              </Button>
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
+              {navItems.map((item) => (
+                <Button 
+                  key={item.text}
+                  color="inherit" 
+                  component={Link} 
+                  to={item.path}
+                  startIcon={item.icon}
+                  sx={{
+                    px: 2,
+                    py: 1,
+                    color: 'white',
+                    borderRadius: 3,
+                    opacity: 0.9,
+                    bgcolor: location.pathname === item.path ? 'rgba(255, 255, 255, 0.15)' : 'transparent',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.25)',
+                      opacity: 1
+                    }
+                  }}
+                >
+                  {item.text}
+                </Button>
+              ))}
             </Box>
             
             <ThemeSelector />
@@ -170,13 +227,25 @@ const Navbar = ({ session }) => {
             <IconButton
               onClick={handleMenu}
               size="small"
-              sx={{ ml: 1 }}
+              sx={{ 
+                ml: 1,
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)',
+                }
+              }}
               aria-controls={open ? 'account-menu' : undefined}
               aria-haspopup="true"
               aria-expanded={open ? 'true' : undefined}
             >
               <Avatar 
-                sx={{ width: 32, height: 32, bgcolor: '#1565c0' }}
+                sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: 'transparent',
+                  color: 'white',
+                  fontWeight: 600
+                }}
                 alt={session?.user?.email.charAt(0).toUpperCase() || 'U'} 
                 src={session?.user?.user_metadata?.avatar_url}
               >
@@ -191,24 +260,76 @@ const Navbar = ({ session }) => {
               onClose={handleClose}
               MenuListProps={{
                 'aria-labelledby': 'basic-button',
+                sx: { py: 0.5 }
+              }}
+              PaperProps={{
+                elevation: 3,
+                sx: {
+                  borderRadius: 3,
+                  mt: 1.5,
+                  overflow: 'visible',
+                  '&:before': {
+                    content: '""',
+                    display: 'block',
+                    position: 'absolute',
+                    top: 0,
+                    right: 14,
+                    width: 10,
+                    height: 10,
+                    bgcolor: 'background.paper',
+                    transform: 'translateY(-50%) rotate(45deg)',
+                    zIndex: 0,
+                  },
+                }
               }}
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
-              <MenuItem onClick={handleProfile}>Profile</MenuItem>
-              <MenuItem onClick={() => { handleClose(); navigate('/workout-templates'); }}>Workout Templates</MenuItem>
-              <MenuItem onClick={() => { handleClose(); navigate('/meal-templates'); }}>Meal Templates</MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>Logout</MenuItem>
+              <MenuItem onClick={handleProfile} sx={{ borderRadius: 1, mx: 1, my: 0.5 }}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/workout-templates'); }} sx={{ borderRadius: 1, mx: 1, my: 0.5 }}>Workout Templates</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/meal-templates'); }} sx={{ borderRadius: 1, mx: 1, my: 0.5 }}>Meal Templates</MenuItem>
+              <Divider sx={{ my: 1 }} />
+              <MenuItem onClick={handleLogout} sx={{ color: 'error.main', borderRadius: 1, mx: 1, my: 0.5 }}>Logout</MenuItem>
             </Menu>
           </>
         ) : (
           // Non-authenticated navigation
           <>
-            <Button color="inherit" component={Link} to="/login">
+            <Button 
+              color="inherit" 
+              component={Link} 
+              to="/login"
+              sx={{
+                borderRadius: 3,
+                px: 3,
+                py: 0.8,
+                color: 'white',
+                opacity: 0.9,
+                mr: 1,
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.15)',
+                  opacity: 1
+                }
+              }}
+            >
               Login
             </Button>
-            <Button color="inherit" component={Link} to="/register">
+            <Button 
+              variant="contained" 
+              component={Link} 
+              to="/register"
+              sx={{
+                borderRadius: 3,
+                px: 3,
+                py: 0.8,
+                color: 'white',
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                }
+              }}
+            >
               Register
             </Button>
           </>

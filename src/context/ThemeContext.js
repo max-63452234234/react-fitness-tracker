@@ -135,48 +135,82 @@ export const ThemeProvider = ({ children }) => {
       ...(mode === 'light'
         ? {
             primary: {
-              main: '#1976d2',
+              main: '#2196f3', // Brighter blue
+              light: '#64b5f6',
+              dark: '#1976d2',
             },
             secondary: {
-              main: '#dc004e',
+              main: '#f50057', // Vibrant pink
+              light: '#ff4081',
+              dark: '#c51162',
             },
             background: {
-              default: '#f5f5f5',
+              default: '#f8f9fa',
               paper: '#ffffff',
+            },
+            success: {
+              main: '#4caf50',
+            },
+            info: {
+              main: '#03a9f4',
             },
           }
         : {
             primary: {
-              main: '#90caf9',
+              main: '#90caf9', // Lighter blue for dark mode
+              light: '#bbdefb',
+              dark: '#42a5f5',
             },
             secondary: {
-              main: '#f48fb1',
+              main: '#f48fb1', // Lighter pink for dark mode
+              light: '#f8bbd0',
+              dark: '#ec407a',
             },
             background: {
-              default: '#303030',
-              paper: '#424242',
+              default: '#1a1a1a', // Darker background
+              paper: '#333333',
+            },
+            success: {
+              main: '#66bb6a',
+            },
+            info: {
+              main: '#29b6f6',
             },
           }),
     },
+    shape: {
+      borderRadius: 16, // Global rounded corners
+    },
     typography: {
+      fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
       fontSize: 14 * TEXT_SIZES[textSize],
       h1: {
         fontSize: '2.5rem',
+        fontWeight: 600,
       },
       h2: {
         fontSize: '2rem',
+        fontWeight: 600,
       },
       h3: {
         fontSize: '1.75rem',
+        fontWeight: 500,
       },
       h4: {
         fontSize: '1.5rem',
+        fontWeight: 500,
       },
       h5: {
         fontSize: '1.25rem',
+        fontWeight: 500,
       },
       h6: {
         fontSize: '1rem',
+        fontWeight: 500,
+      },
+      button: {
+        textTransform: 'none', // More modern look without all caps
+        fontWeight: 500,
       },
     },
     components: {
@@ -184,6 +218,39 @@ export const ThemeProvider = ({ children }) => {
         styleOverrides: {
           root: {
             fontSize: 14 * TEXT_SIZES[textSize],
+            borderRadius: 12,
+            padding: '8px 16px',
+            boxShadow: 'none',
+            '&:hover': {
+              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+            },
+          },
+          containedPrimary: {
+            backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)',
+          },
+          containedSecondary: {
+            backgroundImage: 'linear-gradient(to right, #c51162, #f50057)',
+          },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: 16,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          },
+        },
+      },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 16,
+            overflow: 'hidden',
+            transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+            '&:hover': {
+              transform: 'translateY(-4px)',
+              boxShadow: '0 12px 20px rgba(0,0,0,0.1)',
+            },
           },
         },
       },
@@ -191,6 +258,33 @@ export const ThemeProvider = ({ children }) => {
         styleOverrides: {
           root: {
             fontSize: 14 * TEXT_SIZES[textSize],
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 12,
+            },
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+          },
+        },
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+          },
+        },
+      },
+      MuiSwitch: {
+        styleOverrides: {
+          root: {
+            padding: 8,
+          },
+          thumb: {
+            boxShadow: 'none',
           },
         },
       },

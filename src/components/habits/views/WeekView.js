@@ -115,12 +115,14 @@ const WeekView = ({
                               color: getCount(habit, date, habitLogs) > 0 ? 'white' : 'text.secondary',
                               border: '2px solid',
                               borderColor: getCount(habit, date, habitLogs) > 0 ? 'transparent' : 'divider',
+                              borderRadius: 3,
                               cursor: 'pointer',
                               userSelect: 'none',
                               transition: 'all 0.15s ease-in-out',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
                               '&:hover': {
-                                transform: 'scale(1.05)',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                                transform: 'translateY(-3px)',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                               },
                               '&:active': {
                                 transform: 'scale(0.95)'
@@ -177,11 +179,13 @@ const WeekView = ({
                               ? habit.color || 'success.main'
                               : '#f5f5f5',
                             color: isHabitCompleted(habit, date) ? 'white' : 'text.secondary',
+                            borderRadius: 3,
                             cursor: 'pointer',
                             transition: 'all 0.15s ease-in-out',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
                             '&:hover': {
-                              transform: 'scale(1.05)',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                              transform: 'translateY(-3px)',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                             },
                             '&:active': {
                               transform: 'scale(0.95)'

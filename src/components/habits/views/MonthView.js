@@ -108,11 +108,13 @@ const MonthView = ({
                               opacity: isCurrentMonth ? 1 : 0.4,
                               border: '1px solid',
                               borderColor: getHabitCount(habit, day, habitLogs) > 0 ? 'transparent' : 'divider',
-                              borderRadius: 1,
+                              borderRadius: 2,
+                              boxShadow: getHabitCount(habit, day, habitLogs) > 0 ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
                               mt: 0.5,
+                              transition: 'all 0.15s ease-in-out',
                               '&:hover': isCurrentMonth ? {
-                                transform: 'scale(1.05)',
-                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 3px 6px rgba(0,0,0,0.1)'
                               } : {}
                             }}
                           >

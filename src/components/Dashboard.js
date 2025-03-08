@@ -247,59 +247,46 @@ const Dashboard = () => {
                 </Typography>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                   {habits.map(habit => (
-                    <Grid item key={habit.id}>
+                    <Grid item key={habit.id} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <Box
                         onClick={() => handleToggleHabit(habit)}
                         sx={{
                           display: 'flex',
-                          flexDirection: 'column',
                           alignItems: 'center',
                           justifyContent: 'center',
                           p: 1,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 1,
-                          width: '80px',
-                          height: '80px',
+                          border: '2px solid',
+                          borderColor: getHabitCount(habit.id) > 0 ? 'transparent' : 'divider',
+                          borderRadius: 3,
+                          width: '70px',
+                          height: '70px',
                           cursor: 'pointer',
                           position: 'relative',
                           backgroundColor: getHabitCount(habit.id) > 0 
                             ? (getHabitCount(habit.id) >= (habit.target_per_day || 1) ? 'success.main' : habit.color) 
-                            : 'background.paper',
-                          transition: 'transform 0.2s',
+                            : '#f5f5f5',
+                          transition: 'all 0.15s ease-in-out',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
                           '&:hover': {
-                            transform: 'scale(1.05)',
-                            boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                            transform: 'translateY(-3px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          },
+                          '&:active': {
+                            transform: 'scale(0.95)'
                           }
                         }}
                       >
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            textAlign: 'center',
-                            fontWeight: 'medium',
-                            mb: 1,
-                            color: getHabitCount(habit.id) > 0 ? 'white' : 'text.primary',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            width: '100%'
-                          }}
-                        >
-                          {habit.name}
-                        </Typography>
-                        
                         <Box sx={{ 
                           display: 'flex', 
                           alignItems: 'center', 
                           justifyContent: 'center', 
-                          width: '30px',
-                          height: '30px',
+                          width: '40px',
+                          height: '40px',
                           borderRadius: '50%',
                           bgcolor: getHabitCount(habit.id) > 0 ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.05)',
                           color: getHabitCount(habit.id) > 0 ? 'white' : 'text.secondary'
                         }}>
-                          <Typography sx={{ fontSize: '14px', fontWeight: 'medium' }}>
+                          <Typography sx={{ fontSize: '18px', fontWeight: 'medium' }}>
                             {getHabitCount(habit.id)}
                           </Typography>
                         </Box>
@@ -319,6 +306,23 @@ const Dashboard = () => {
                           </Typography>
                         )}
                       </Box>
+                      
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          textAlign: 'center',
+                          fontWeight: 'medium',
+                          mt: 1,
+                          maxWidth: '80px',
+                          color: 'text.secondary',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          width: '100%'
+                        }}
+                      >
+                        {habit.name}
+                      </Typography>
                     </Grid>
                   ))}
                 </Grid>
@@ -329,6 +333,14 @@ const Dashboard = () => {
                   to="/habits" 
                   size="small" 
                   color="primary"
+                  sx={{ 
+                    borderRadius: 3, 
+                    px: 2,
+                    ml: 1,
+                    '&:hover': {
+                      backgroundColor: 'rgba(33, 150, 243, 0.08)'
+                    }
+                  }}
                 >
                   Go to Habit Tracker
                 </Button>
@@ -350,6 +362,12 @@ const Dashboard = () => {
                   component={Link} 
                   to="/workouts"
                   color="primary"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: 3,
+                    backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)',
+                    boxShadow: '0 4px 10px rgba(33, 150, 243, 0.3)'
+                  }}
                 >
                   Log Workout
                 </Button>
@@ -359,7 +377,13 @@ const Dashboard = () => {
                   variant="contained" 
                   component={Link} 
                   to="/habits"
-                  color="secondary"
+                  color="primary"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: 3,
+                    backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)',
+                    boxShadow: '0 4px 10px rgba(33, 150, 243, 0.3)'
+                  }}
                 >
                   Track Habits
                 </Button>
@@ -369,6 +393,13 @@ const Dashboard = () => {
                   variant="contained" 
                   component={Link} 
                   to="/weight"
+                  color="primary"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: 3,
+                    backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)',
+                    boxShadow: '0 4px 10px rgba(33, 150, 243, 0.3)'
+                  }}
                 >
                   Log Weight
                 </Button>
@@ -378,6 +409,13 @@ const Dashboard = () => {
                   variant="contained" 
                   component={Link} 
                   to="/macros"
+                  color="primary"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: 3,
+                    backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)',
+                    boxShadow: '0 4px 10px rgba(33, 150, 243, 0.3)'
+                  }}
                 >
                   Log Nutrition
                 </Button>
@@ -387,6 +425,16 @@ const Dashboard = () => {
                   variant="outlined" 
                   component={Link} 
                   to="/progress"
+                  color="primary"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: 3,
+                    borderWidth: 1,
+                    '&:hover': {
+                      borderWidth: 1,
+                      boxShadow: '0 2px 8px rgba(33, 150, 243, 0.2)'
+                    }
+                  }}
                 >
                   View Progress
                 </Button>
@@ -428,6 +476,14 @@ const Dashboard = () => {
                 to="/workouts" 
                 size="small" 
                 color="primary"
+                sx={{ 
+                  borderRadius: 3, 
+                  px: 2,
+                  ml: 1,
+                  '&:hover': {
+                    backgroundColor: 'rgba(33, 150, 243, 0.08)'
+                  }
+                }}
               >
                 View All Workouts
               </Button>
@@ -467,6 +523,14 @@ const Dashboard = () => {
                 to="/weight" 
                 size="small" 
                 color="primary"
+                sx={{ 
+                  borderRadius: 3, 
+                  px: 2,
+                  ml: 1,
+                  '&:hover': {
+                    backgroundColor: 'rgba(33, 150, 243, 0.08)'
+                  }
+                }}
               >
                 Track Weight
               </Button>
@@ -506,6 +570,14 @@ const Dashboard = () => {
                 to="/macros" 
                 size="small" 
                 color="primary"
+                sx={{ 
+                  borderRadius: 3, 
+                  px: 2,
+                  ml: 1,
+                  '&:hover': {
+                    backgroundColor: 'rgba(33, 150, 243, 0.08)'
+                  }
+                }}
               >
                 Track Nutrition
               </Button>
