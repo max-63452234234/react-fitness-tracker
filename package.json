@@ -31,7 +31,8 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.30.0",
     "react-scripts": "5.0.1",
-    "recharts": "^2.15.1"
+    "recharts": "^2.15.1",
+    "sqlite3": "^5.1.7"
   },
   "browserslist": {
     "production": [
@@ -46,6 +47,18 @@
     ]
   },
   "devDependencies": {
+    "eslint-plugin-react-hooks": "^5.2.0",
     "gh-pages": "^6.1.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "plugins": [],
+    "rules": {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn"
+    }
   }
 }

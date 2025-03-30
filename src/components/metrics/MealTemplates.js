@@ -24,18 +24,20 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
-import { supabase } from '../../index.js';
+// import { supabase } from '../../index.js'; // REMOVED Supabase import
 
 /**
  * MealTemplates component
  * Allows users to create and use meal templates for faster logging
+ * @param {Object} props - Component props
+ * @param {Object} props.currentUser - Current user object (e.g., { id: userId })
  */
-const MealTemplates = () => {
+const MealTemplates = ({ currentUser }) => { // Accept currentUser prop
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
-  
+  // const [userId, setUserId] = useState(null); // Use currentUser.id
+
   // Form state
   const [openForm, setOpenForm] = useState(false);
   const [templateName, setTemplateName] = useState('');
@@ -46,39 +48,43 @@ const MealTemplates = () => {
   const [fat, setFat] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [currentTemplate, setCurrentTemplate] = useState(null);
-  
+
+  // Fetch initial data
   useEffect(() => {
     const fetchTemplates = async () => {
+      if (!currentUser || !currentUser.id) {
+        console.log("MealTemplates: No current user found.");
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setUserId(user.id);
-        
-        // Fetch meal templates
-        const { data, error } = await supabase
-          .from('meal_templates')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('name');
-          
-        if (error) throw error;
-        
-        setTemplates(data || []);
+        setError(null);
+        const userId = currentUser.id;
+
+        // --- Fetch meal templates from backend ---
+        const response = await fetch(`http://localhost:3002/api/meal-templates?userId=${userId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setTemplates(data.data || []);
+
       } catch (error) {
         console.error('Error fetching meal templates:', error.message);
-        setError('Failed to load meal templates. Please try again.');
+        setError(`Failed to load meal templates: ${error.message}. Please try again.`);
+        setTemplates([]);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchTemplates();
-  }, []);
-  
+  }, [currentUser]); // Re-fetch if user changes
+
   const handleOpenForm = (template = null) => {
+    setError(null); // Clear error when opening form
     if (template) {
       // Edit mode
       setCurrentTemplate(template);
@@ -100,145 +106,184 @@ const MealTemplates = () => {
       setFat('');
       setEditMode(false);
     }
-    
     setOpenForm(true);
   };
-  
+
   const handleCloseForm = () => {
     setOpenForm(false);
+    setError(null); // Clear error on close
   };
-  
+
+  // Handle Add/Update Submit
   const handleSubmit = async () => {
+     if (!currentUser?.id) {
+         setError('User not logged in.');
+         return;
+     }
+     setError(null);
+
+    // Validate form
+    if (!templateName || !calories || !protein || !carbs || !fat ||
+        isNaN(parseInt(calories)) || isNaN(parseFloat(protein)) ||
+        isNaN(parseFloat(carbs)) || isNaN(parseFloat(fat))) {
+      setError('Please fill all fields with valid numbers.');
+      return;
+    }
+
+    const mealData = {
+      userId: currentUser.id, // Pass userId for backend check
+      name: templateName,
+      description: templateDescription,
+      calories: parseInt(calories),
+      protein: parseFloat(protein),
+      carbs: parseFloat(carbs),
+      fat: parseFloat(fat),
+    };
+
     try {
-      // Validate form
-      if (!templateName || !calories || !protein || !carbs || !fat) {
-        setError('Please fill all required fields');
-        return;
-      }
-      
-      const mealData = {
-        name: templateName,
-        description: templateDescription,
-        calories: parseInt(calories),
-        protein: parseFloat(protein),
-        carbs: parseFloat(carbs),
-        fat: parseFloat(fat),
-        user_id: userId
-      };
-      
+      let response;
+      let updatedTemplateData;
+
       if (editMode && currentTemplate) {
         // Update existing template
-        const { error } = await supabase
-          .from('meal_templates')
-          .update(mealData)
-          .eq('id', currentTemplate.id);
-          
-        if (error) throw error;
-        
-        // Update state
-        setTemplates(templates.map(template => 
-          template.id === currentTemplate.id 
-            ? { ...template, ...mealData } 
-            : template
-        ));
+        response = await fetch(`http://localhost:3002/api/meal-templates/${currentTemplate.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mealData)
+        });
       } else {
         // Create new template
-        const { data, error } = await supabase
-          .from('meal_templates')
-          .insert([mealData])
-          .select();
-          
-        if (error) throw error;
-        
-        // Add to state
-        setTemplates([...templates, data[0]]);
+        response = await fetch(`http://localhost:3002/api/meal-templates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mealData)
+        });
       }
-      
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      updatedTemplateData = await response.json(); // Backend returns the created/updated template
+
+      // Update state
+      if (editMode) {
+        setTemplates(templates.map(template =>
+          template.id === currentTemplate.id ? updatedTemplateData.data : template
+        ));
+      } else {
+        setTemplates([...templates, updatedTemplateData.data]);
+      }
+
       handleCloseForm();
     } catch (error) {
       console.error('Error saving meal template:', error.message);
-      setError('Failed to save meal template. Please try again.');
+      setError(`Failed to save meal template: ${error.message}. Please try again.`);
     }
   };
-  
+
+  // Handle Delete
   const handleDelete = async (id) => {
+    if (!currentUser?.id) return;
+
     if (!window.confirm('Are you sure you want to delete this meal template?')) {
       return;
     }
-    
+    setError(null);
+
     try {
-      const { error } = await supabase
-        .from('meal_templates')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
+      const response = await fetch(`http://localhost:3002/api/meal-templates/${id}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          // Pass userId in body until JWT is implemented
+          body: JSON.stringify({ userId: currentUser.id })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
       // Remove from state
       setTemplates(templates.filter(template => template.id !== id));
+
     } catch (error) {
       console.error('Error deleting meal template:', error.message);
-      setError('Failed to delete meal template. Please try again.');
+      setError(`Failed to delete meal template: ${error.message}. Please try again.`);
     }
   };
-  
+
+  // Handle using a template to log macros for today
   const handleUseTemplate = async (template) => {
+    if (!currentUser?.id) return;
+    setError(null);
+
     try {
       const today = new Date().toISOString().split('T')[0];
-      
-      // Create a new macro log entry using this template
-      const { error } = await supabase
-        .from('macro_logs')
-        .insert([{
-          user_id: userId,
-          date: today,
-          calories: template.calories,
-          protein: template.protein,
-          carbs: template.carbs,
-          fat: template.fat
-        }]);
-        
-      if (error) throw error;
-      
-      alert(`Logged ${template.name} for today!`);
+
+      // --- Create a new macro log entry using backend API ---
+      const response = await fetch(`http://localhost:3002/api/macro-logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              userId: currentUser.id,
+              date: today,
+              calories: template.calories,
+              protein: template.protein,
+              carbs: template.carbs,
+              fat: template.fat
+          })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      // Optionally show a success message (alert might be disruptive)
+      console.log(`Logged ${template.name} for today!`);
+      // Consider using a Snackbar for less intrusive feedback
+
     } catch (error) {
       console.error('Error using meal template:', error.message);
-      setError('Failed to log meal. Please try again.');
+      setError(`Failed to log meal using template: ${error.message}. Please try again.`);
     }
   };
-  
+
   // Show loading state
-  if (loading && templates.length === 0) {
+  if (loading) { // Simplified loading check
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
         <CircularProgress />
       </Box>
     );
   }
-  
+
   return (
     <Box sx={{ flexGrow: 1 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
           Meal Templates
         </Typography>
-        
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />} 
+
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
           onClick={() => handleOpenForm()}
+          disabled={!currentUser} // Disable if not logged in
         >
           Add Meal Template
         </Button>
       </Box>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+
+      {error && !openForm && ( // Only show general error if form not open
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      
-      {templates.length === 0 ? (
+
+      {templates.length === 0 && !loading ? (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="body1">
             You haven't created any meal templates yet. Create meal templates to quickly log your regular meals.
@@ -253,13 +298,13 @@ const MealTemplates = () => {
                   <Typography variant="h6" gutterBottom>
                     {template.name}
                   </Typography>
-                  
+
                   {template.description && (
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                       {template.description}
                     </Typography>
                   )}
-                  
+
                   <List dense>
                     <ListItem>
                       <ListItemText primary="Calories" secondary={`${template.calories} kcal`} />
@@ -278,26 +323,29 @@ const MealTemplates = () => {
                     </ListItem>
                   </List>
                 </CardContent>
-                
+
                 <CardActions>
-                  <Button 
-                    size="small" 
+                  <Button
+                    size="small"
                     color="primary"
                     onClick={() => handleUseTemplate(template)}
+                    disabled={!currentUser}
                   >
                     Use Template
                   </Button>
                   <Box sx={{ flexGrow: 1 }} />
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => handleOpenForm(template)}
+                    disabled={!currentUser}
                   >
                     <EditIcon fontSize="small" />
                   </IconButton>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     color="error"
                     onClick={() => handleDelete(template.id)}
+                    disabled={!currentUser}
                   >
                     <DeleteIcon fontSize="small" />
                   </IconButton>
@@ -307,24 +355,28 @@ const MealTemplates = () => {
           ))}
         </Grid>
       )}
-      
+
       {/* Template Form Dialog */}
       <Dialog open={openForm} onClose={handleCloseForm} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editMode ? 'Edit Meal Template' : 'Create Meal Template'}
-        </DialogTitle>
+        <DialogTitle>{editMode ? 'Edit Meal Template' : 'Create Meal Template'}</DialogTitle>
         <DialogContent>
+           {/* Display form-specific error */}
+           {error && openForm && (
+             <Alert severity="error" sx={{ mb: 2 }}>
+               {error}
+             </Alert>
+           )}
           <TextField
-            margin="normal"
+            margin="dense" // Use dense margin in dialog
             label="Name"
             fullWidth
             required
             value={templateName}
             onChange={e => setTemplateName(e.target.value)}
           />
-          
+
           <TextField
-            margin="normal"
+            margin="dense"
             label="Description (Optional)"
             fullWidth
             multiline
@@ -332,9 +384,9 @@ const MealTemplates = () => {
             value={templateDescription}
             onChange={e => setTemplateDescription(e.target.value)}
           />
-          
+
           <TextField
-            margin="normal"
+            margin="dense"
             label="Calories"
             type="number"
             fullWidth
@@ -343,11 +395,11 @@ const MealTemplates = () => {
             onChange={e => setCalories(e.target.value)}
             InputProps={{ inputProps: { min: 0 } }}
           />
-          
+
           <Grid container spacing={2}>
             <Grid item xs={4}>
               <TextField
-                margin="normal"
+                margin="dense"
                 label="Protein (g)"
                 type="number"
                 fullWidth
@@ -359,7 +411,7 @@ const MealTemplates = () => {
             </Grid>
             <Grid item xs={4}>
               <TextField
-                margin="normal"
+                margin="dense"
                 label="Carbs (g)"
                 type="number"
                 fullWidth
@@ -371,7 +423,7 @@ const MealTemplates = () => {
             </Grid>
             <Grid item xs={4}>
               <TextField
-                margin="normal"
+                margin="dense"
                 label="Fat (g)"
                 type="number"
                 fullWidth

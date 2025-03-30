@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  AppBar, 
-  Toolbar, 
-  Typography, 
-  Button, 
-  Box, 
-  IconButton, 
-  Menu, 
-  MenuItem, 
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  Box,
+  IconButton,
+  Menu,
+  MenuItem,
   Avatar,
   Drawer,
   List,
@@ -19,22 +19,23 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
-import ListAltIcon from '@mui/icons-material/ListAlt';
+// import ListAltIcon from '@mui/icons-material/ListAlt'; // Removed unused
 import MonitorWeightIcon from '@mui/icons-material/MonitorWeight';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
-import FastfoodIcon from '@mui/icons-material/Fastfood';
+// import FastfoodIcon from '@mui/icons-material/Fastfood'; // Removed unused
 import CheckBoxIcon from '@mui/icons-material/CheckBox';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { supabase } from '../index.js';
+// import { supabase } from '../index.js'; // Removed Supabase import
 import ThemeSelector from './ThemeSelector';
 
 /**
  * Navigation bar component that adapts based on authentication state
  * @param {Object} props - Component props
- * @param {Object} props.session - Current user session
+ * @param {Object} props.currentUser - Current user object (e.g., { id: userId }) or null
+ * @param {Function} props.onLogout - Function to call when logout is clicked
  */
-const Navbar = ({ session }) => {
+const Navbar = ({ currentUser, onLogout }) => { // Updated props
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -49,10 +50,12 @@ const Navbar = ({ session }) => {
     setAnchorEl(null);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => { // Updated logout handler
     handleClose();
-    await supabase.auth.signOut();
-    navigate('/login');
+    if (onLogout) {
+      onLogout(); // Call the function passed from App.js
+    }
+    // Navigation to /login will happen automatically in App.js due to state change
   };
 
   const handleProfile = () => {
@@ -81,10 +84,10 @@ const Navbar = ({ session }) => {
   ];
 
   return (
-    <AppBar 
-      position="static" 
+    <AppBar
+      position="static"
       elevation={0}
-      sx={{ 
+      sx={{
         background: 'linear-gradient(90deg, #2196f3 0%, #42a5f5 100%)',
         mb: 3,
         borderRadius: { xs: 0, sm: '0 0 16px 16px' },
@@ -94,13 +97,13 @@ const Navbar = ({ session }) => {
       }}
     >
       <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
-        <Typography 
-          variant="h6" 
-          component={Link} 
+        <Typography
+          variant="h6"
+          component={Link}
           to="/"
-          sx={{ 
-            flexGrow: 1, 
-            color: 'white', 
+          sx={{
+            flexGrow: 1,
+            color: 'white',
             textDecoration: 'none',
             fontWeight: 'bold',
             letterSpacing: '0.5px',
@@ -110,7 +113,7 @@ const Navbar = ({ session }) => {
           Fitness Tracker
         </Typography>
 
-        {session ? (
+        {currentUser ? ( // Check currentUser instead of session
           // Authenticated navigation
           <>
             {/* Mobile menu button - only visible on small screens */}
@@ -123,7 +126,7 @@ const Navbar = ({ session }) => {
             >
               <MenuIcon />
             </IconButton>
-            
+
             {/* Mobile navigation drawer */}
             <Drawer
               anchor="left"
@@ -137,14 +140,14 @@ const Navbar = ({ session }) => {
               }}
             >
               <Box
-                sx={{ 
+                sx={{
                   width: 280,
                   bgcolor: (theme) => theme.palette.background.paper,
                 }}
                 role="presentation"
               >
-                <Box sx={{ 
-                  p: 2, 
+                <Box sx={{
+                  p: 2,
                   background: 'linear-gradient(90deg, #2196f3 0%, #42a5f5 100%)',
                   color: 'white',
                   display: 'flex',
@@ -156,9 +159,9 @@ const Navbar = ({ session }) => {
                 </Box>
                 <List sx={{ py: 1 }}>
                   {navItems.map((item) => (
-                    <ListItem 
-                      button 
-                      key={item.text} 
+                    <ListItem
+                      button
+                      key={item.text}
                       onClick={() => handleMobileNavigation(item.path)}
                       selected={location.pathname === item.path}
                       sx={{
@@ -177,15 +180,15 @@ const Navbar = ({ session }) => {
                         }
                       }}
                     >
-                      <ListItemIcon sx={{ 
+                      <ListItemIcon sx={{
                         color: location.pathname === item.path ? 'primary.main' : 'text.secondary',
                         minWidth: 40
                       }}>
                         {item.icon}
                       </ListItemIcon>
-                      <ListItemText 
-                        primary={item.text} 
-                        primaryTypographyProps={{ 
+                      <ListItemText
+                        primary={item.text}
+                        primaryTypographyProps={{
                           fontWeight: location.pathname === item.path ? 500 : 400
                         }}
                       />
@@ -194,14 +197,14 @@ const Navbar = ({ session }) => {
                 </List>
               </Box>
             </Drawer>
-            
+
             {/* Desktop navigation - only visible on medium and larger screens */}
             <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
               {navItems.map((item) => (
-                <Button 
+                <Button
                   key={item.text}
-                  color="inherit" 
-                  component={Link} 
+                  color="inherit"
+                  component={Link}
                   to={item.path}
                   startIcon={item.icon}
                   sx={{
@@ -221,13 +224,13 @@ const Navbar = ({ session }) => {
                 </Button>
               ))}
             </Box>
-            
+
             <ThemeSelector />
-            
+
             <IconButton
               onClick={handleMenu}
               size="small"
-              sx={{ 
+              sx={{
                 ml: 1,
                 bgcolor: 'rgba(255, 255, 255, 0.15)',
                 '&:hover': {
@@ -238,21 +241,22 @@ const Navbar = ({ session }) => {
               aria-haspopup="true"
               aria-expanded={open ? 'true' : undefined}
             >
-              <Avatar 
-                sx={{ 
-                  width: 32, 
-                  height: 32, 
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
                   bgcolor: 'transparent',
                   color: 'white',
                   fontWeight: 600
                 }}
-                alt={session?.user?.email.charAt(0).toUpperCase() || 'U'} 
-                src={session?.user?.user_metadata?.avatar_url}
+                // Removed Supabase specific user info - just show a generic icon or initial
+                // alt={currentUser?.id ? 'User' : 'U'}
               >
-                {session?.user?.email.charAt(0).toUpperCase()}
+                {/* Can add user initial later if we fetch profile */}
+                U
               </Avatar>
             </IconButton>
-            
+
             <Menu
               id="account-menu"
               anchorEl={anchorEl}
@@ -295,9 +299,9 @@ const Navbar = ({ session }) => {
         ) : (
           // Non-authenticated navigation
           <>
-            <Button 
-              color="inherit" 
-              component={Link} 
+            <Button
+              color="inherit"
+              component={Link}
               to="/login"
               sx={{
                 borderRadius: 3,
@@ -314,9 +318,9 @@ const Navbar = ({ session }) => {
             >
               Login
             </Button>
-            <Button 
-              variant="contained" 
-              component={Link} 
+            <Button
+              variant="contained"
+              component={Link}
               to="/register"
               sx={{
                 borderRadius: 3,

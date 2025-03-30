@@ -11,15 +11,15 @@ import {
   IconButton,
   Paper,
   Tooltip,
-  Badge,
-  Chip,
-  LinearProgress
+  // Badge, // Removed unused
+  // Chip, // Removed unused
+  // LinearProgress // Removed unused
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import TodayIcon from '@mui/icons-material/Today';
+// import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // Removed unused
+// import CancelIcon from '@mui/icons-material/Cancel'; // Removed unused
+// import TodayIcon from '@mui/icons-material/Today'; // Removed unused
 import DeleteIcon from '@mui/icons-material/Delete';
-import AddCircleIcon from '@mui/icons-material/AddCircle';
+// import AddCircleIcon from '@mui/icons-material/AddCircle'; // Removed unused
 import { format, isToday } from 'date-fns';
 import { getHabitCount as getCount } from '../utils/habitUtils';
 
@@ -37,9 +37,8 @@ const WeekView = ({
   handleDecrementHabitCount,
   habitLogs = []
 }) => {
-  // For backward compatibility
-  const getHabitCount = getCount;
-  
+  // Removed unused getHabitCount variable assignment
+
   // Call the parent component's handler for decrementing
   const handleDecrement = (habit, date) => {
     if (getCount(habit, date, habitLogs) > 0) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback, removed useMemo
 import {
   Box,
   Typography,
@@ -14,20 +14,20 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DateRangeIcon from '@mui/icons-material/DateRange';
 import CalendarViewMonthIcon from '@mui/icons-material/CalendarViewMonth';
-import { supabase } from '../../index.js';
-import { 
-  format, 
-  startOfWeek, 
-  endOfWeek, 
-  addDays, 
+// import { supabase } from '../../index.js'; // REMOVED Supabase import
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  addDays,
   subDays,
-  startOfMonth, 
-  endOfMonth, 
-  addMonths, 
+  startOfMonth,
+  endOfMonth,
+  addMonths,
   addYears,
-  startOfYear,
-  endOfYear,
-  getMonth,
+  // startOfYear, // Removed unused
+  // endOfYear, // Removed unused
+  // getMonth, // Removed unused
   getYear
 } from 'date-fns';
 
@@ -39,25 +39,27 @@ import HabitForm from './HabitForm';
 import NoteEditor from './NoteEditor';
 
 // Import utilities
-import { 
+import {
   calculateYearlyCompletionRates,
   isHabitCompleted as checkHabitCompleted,
   getHabitNote as getHabitNoteText,
-  getHabitCount,
+  // getHabitCount, // Removed unused
   colorOptions
 } from './utils/habitUtils';
 
 /**
  * HabitTracker component
  * Main component for tracking daily habits with different views
+ * @param {Object} props - Component props
+ * @param {Object} props.currentUser - Current user object (e.g., { id: userId })
  */
-const HabitTracker = () => {
+const HabitTracker = ({ currentUser }) => { // Accept currentUser prop
   const [habits, setHabits] = useState([]);
   const [habitLogs, setHabitLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
-  
+  // const [userId, setUserId] = useState(null); // Use currentUser.id
+
   // Form state
   const [openForm, setOpenForm] = useState(false);
   const [habitName, setHabitName] = useState('');
@@ -67,71 +69,114 @@ const HabitTracker = () => {
   const [targetPerDay, setTargetPerDay] = useState(1);
   const [selectedHabit, setSelectedHabit] = useState(null);
   const [editMode, setEditMode] = useState(false);
-  
+
   // View state
   const [viewType, setViewType] = useState('week');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dateRange, setDateRange] = useState([]);
-  
+
   // Track the currently edited cell
   const [editingCell, setEditingCell] = useState(null);
   const [noteText, setNoteText] = useState('');
-  
+
   // For month view
   const [weeks, setWeeks] = useState([]);
-  
+
   // For year view
   const [habitCompletionRates, setHabitCompletionRates] = useState({});
-  
+
+  // Fetch initial data (habits and all logs)
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentUser || !currentUser.id) {
+        console.log("HabitTracker: No current user found.");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setUserId(user.id);
-        
-        // Fetch habits
-        const { data: habitsData, error: habitsError } = await supabase
-          .from('habits')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('name');
-          
-        if (habitsError) throw habitsError;
-        setHabits(habitsData || []);
-        
-        // Fetch recent habit logs (last 90 days)
-        const today = new Date();
-        const ninetyDaysAgo = subDays(today, 90);
-        
-        const { data: logsData, error: logsError } = await supabase
-          .from('habit_logs')
-          .select('*')
-          .gte('date', ninetyDaysAgo.toISOString().split('T')[0])
-          .order('date', { ascending: false });
-          
-        if (logsError) throw logsError;
-        setHabitLogs(logsData || []);
-        
+        setError(null);
+        const userId = currentUser.id;
+
+        // Fetch habits and all logs concurrently
+        const [habitsRes, logsRes] = await Promise.all([
+          fetch(`http://localhost:3002/api/habits?userId=${userId}`),
+          fetch(`http://localhost:3002/api/habit-logs/all?userId=${userId}`) // Fetch all logs
+        ]);
+
+        // Process habits
+        if (!habitsRes.ok) {
+          const errData = await habitsRes.json();
+          throw new Error(errData.error || `Failed to fetch habits: ${habitsRes.statusText}`);
+        }
+        const habitsData = await habitsRes.json();
+        setHabits(habitsData.data || []);
+
+        // Process logs
+        if (!logsRes.ok) {
+          const errData = await logsRes.json();
+          throw new Error(errData.error || `Failed to fetch habit logs: ${logsRes.statusText}`);
+        }
+        const logsData = await logsRes.json();
+        setHabitLogs(logsData.data || []);
+
       } catch (error) {
         console.error('Error fetching habits data:', error.message);
-        setError('Failed to load habits. Please try again.');
+        setError(`Failed to load habits data: ${error.message}. Please try again.`);
+        setHabits([]);
+        setHabitLogs([]);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
-  }, []);
-  
+  }, [currentUser]); // Re-fetch if user changes
+
   // Update date range when view type or current date changes
+  const updateDateRange = useCallback(() => { // Wrap in useCallback
+    let range = [];
+
+    if (viewType === 'week') {
+      const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start from Monday
+      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+
+      let day = weekStart;
+      while (day <= weekEnd) {
+        range.push(new Date(day));
+        day = addDays(day, 1);
+      }
+
+      setDateRange(range);
+    } else if (viewType === 'month') {
+      const firstDay = startOfMonth(currentDate);
+      let weekStart = startOfWeek(firstDay, { weekStartsOn: 1 });
+      const lastDay = endOfMonth(currentDate);
+      const weekGroups = [];
+      while (weekStart <= lastDay) {
+        let currentWeek = [];
+        for (let i = 0; i < 7; i++) {
+          const day = addDays(weekStart, i);
+          currentWeek.push(day);
+        }
+        weekGroups.push(currentWeek);
+        weekStart = addDays(weekStart, 7);
+      }
+      setWeeks(weekGroups);
+
+    } else if (viewType === 'year') {
+       for (let month = 0; month < 12; month++) {
+         range.push(new Date(getYear(currentDate), month, 1));
+       }
+       setDateRange(range);
+    }
+  }, [viewType, currentDate]); // Add dependencies
+
   useEffect(() => {
     updateDateRange();
-  }, [viewType, currentDate]);
-  
+  }, [updateDateRange]); // Add updateDateRange to dependency array
+
   // Update habit completion rates for year view
   useEffect(() => {
     if (viewType === 'year' && habits.length > 0) {
@@ -139,62 +184,7 @@ const HabitTracker = () => {
       setHabitCompletionRates(rates);
     }
   }, [viewType, habits, habitLogs, currentDate]);
-  
-  const updateDateRange = () => {
-    let range = [];
-    
-    if (viewType === 'week') {
-      const start = startOfWeek(currentDate, { weekStartsOn: 1 }); // Start from Monday
-      const end = endOfWeek(currentDate, { weekStartsOn: 1 });
-      
-      let day = start;
-      while (day <= end) {
-        range.push(new Date(day));
-        day = addDays(day, 1);
-      }
-      
-      setDateRange(range);
-    } else if (viewType === 'month') {
-      const start = startOfMonth(currentDate);
-      const end = endOfMonth(currentDate);
-      
-      // Group dates by weeks for the month view
-      const weekGroups = [];
-      let currentWeek = [];
-      
-      // Find the first day of the month
-      const firstDay = startOfMonth(currentDate);
-      // Find the first day of the week (Monday) that contains the first day of the month
-      let weekStart = startOfWeek(firstDay, { weekStartsOn: 1 });
-      
-      // Find the last day of the month
-      const lastDay = endOfMonth(currentDate);
-      
-      // Loop until we've processed all days in the month
-      while (weekStart <= lastDay) {
-        currentWeek = [];
-        
-        // Add the 7 days of this week
-        for (let i = 0; i < 7; i++) {
-          const day = addDays(weekStart, i);
-          currentWeek.push(day);
-        }
-        
-        weekGroups.push(currentWeek);
-        weekStart = addDays(weekStart, 7);
-      }
-      
-      setWeeks(weekGroups);
-    } else if (viewType === 'year') {
-      // For year view, we add first day of each month
-      for (let month = 0; month < 12; month++) {
-        range.push(new Date(getYear(currentDate), month, 1));
-      }
-      
-      setDateRange(range);
-    }
-  };
-  
+
   const handleOpenForm = (habit = null) => {
     if (habit) {
       setSelectedHabit(habit);
@@ -209,11 +199,13 @@ const HabitTracker = () => {
       setHabitName('');
       setHabitDescription('');
       setHabitColor('#2196f3');
+      setHabitTrackingType('daily'); // Reset to default
+      setTargetPerDay(1); // Reset to default
       setEditMode(false);
     }
     setOpenForm(true);
   };
-  
+
   const handleCloseForm = () => {
     setOpenForm(false);
     setSelectedHabit(null);
@@ -224,221 +216,160 @@ const HabitTracker = () => {
     setTargetPerDay(1);
     setEditMode(false);
   };
-  
+
+  // Save Habit (Create or Update)
   const handleSaveHabit = async () => {
-    if (!habitName.trim()) {
-      setError('Please enter a habit name');
+    if (!habitName.trim() || !currentUser?.id) {
+      setError('Habit name is required.');
       return;
     }
-    
+    setError(null);
+
+    const habitData = {
+      userId: currentUser.id, // Pass userId
+      name: habitName.trim(),
+      description: habitDescription.trim(),
+      color: habitColor,
+      tracking_type: habitTrackingType,
+      target_per_day: habitTrackingType === 'multiple' ? targetPerDay : null // Use null if not multiple
+    };
+
     try {
-      if (editMode) {
+      let response;
+      let updatedHabitData;
+
+      if (editMode && selectedHabit) {
         // Update existing habit
-        const { error } = await supabase
-          .from('habits')
-          .update({
-            name: habitName.trim(),
-            description: habitDescription.trim(),
-            color: habitColor,
-            tracking_type: habitTrackingType,
-            target_per_day: habitTrackingType === 'multiple' ? targetPerDay : 1
-          })
-          .eq('id', selectedHabit.id);
-          
-        if (error) throw error;
-        
-        // Update habit in state
-        setHabits(habits.map(h => 
-          h.id === selectedHabit.id 
-            ? { 
-                ...h, 
-                name: habitName.trim(), 
-                description: habitDescription.trim(), 
-                color: habitColor,
-                tracking_type: habitTrackingType,
-                target_per_day: habitTrackingType === 'multiple' ? targetPerDay : 1
-              } 
-            : h
-        ));
+        response = await fetch(`http://localhost:3002/api/habits/${selectedHabit.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(habitData)
+        });
       } else {
         // Create new habit
-        const { data, error } = await supabase
-          .from('habits')
-          .insert([{
-            user_id: userId,
-            name: habitName.trim(),
-            description: habitDescription.trim(),
-            color: habitColor,
-            tracking_type: habitTrackingType,
-            target_per_day: habitTrackingType === 'multiple' ? targetPerDay : 1
-          }])
-          .select();
-          
-        if (error) throw error;
-        
-        // Add new habit to state
-        setHabits([...habits, data[0]]);
+        response = await fetch(`http://localhost:3002/api/habits`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(habitData)
+        });
       }
-      
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      updatedHabitData = await response.json(); // Backend returns the created/updated habit
+
+      // Update state
+      if (editMode) {
+        setHabits(habits.map(h => (h.id === selectedHabit.id ? updatedHabitData.data : h)));
+      } else {
+        setHabits([...habits, updatedHabitData.data]);
+      }
+
       handleCloseForm();
     } catch (error) {
       console.error('Error saving habit:', error.message);
-      setError('Failed to save habit. Please try again.');
+      setError(`Failed to save habit: ${error.message}. Please try again.`);
     }
   };
-  
+
+  // Delete Habit
   const handleDeleteHabit = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this habit? This will delete all logs for this habit.')) {
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('habits')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      // Remove habit from state
-      setHabits(habits.filter(h => h.id !== id));
-      
-      // Remove associated logs
-      setHabitLogs(habitLogs.filter(log => log.habit_id !== id));
-    } catch (error) {
-      console.error('Error deleting habit:', error.message);
-      setError('Failed to delete habit. Please try again.');
-    }
-  };
-  
+     if (!currentUser?.id) return;
+
+     if (!window.confirm('Are you sure you want to delete this habit? This will delete all logs for this habit.')) {
+       return;
+     }
+     setError(null);
+
+     try {
+       const response = await fetch(`http://localhost:3002/api/habits/${id}`, {
+         method: 'DELETE',
+         headers: { 'Content-Type': 'application/json' },
+         // Pass userId in body until JWT is implemented
+         body: JSON.stringify({ userId: currentUser.id })
+       });
+
+       if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+       }
+
+       // Remove habit and its logs from state
+       setHabits(habits.filter(h => h.id !== id));
+       setHabitLogs(habitLogs.filter(log => log.habit_id !== id));
+
+     } catch (error) {
+       console.error('Error deleting habit:', error.message);
+       setError(`Failed to delete habit: ${error.message}. Please try again.`);
+     }
+   };
+
+  // Toggle Habit Log (Increment Count)
   const handleToggleHabitLog = async (habit, date) => {
+    if (!currentUser?.id) return;
+    setError(null);
+    const dateStr = format(date, 'yyyy-MM-dd');
+
+    // Optimistic UI update logic can go here if desired
+
     try {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      
-      // Check if a log exists for this habit and date
-      const existingLog = habitLogs.find(log => 
-        log.habit_id === habit.id && log.date === dateStr
-      );
-      
-      if (existingLog) {
-        // Always increment count
-        const newCount = existingLog.count + 1;
-        
-        const { error } = await supabase
-          .from('habit_logs')
-          .update({ 
-            completed: true,
-            count: newCount
-          })
-          .eq('id', existingLog.id);
-          
-        if (error) throw error;
-        
-        // Update log in state
-        setHabitLogs(habitLogs.map(log => 
-          log.id === existingLog.id 
-            ? { 
-                ...log, 
-                completed: true,
-                count: newCount
-              } 
-            : log
-        ));
-      } else {
-        // Create a new log if it doesn't exist
-        const { data, error } = await supabase
-          .from('habit_logs')
-          .insert([{
-            habit_id: habit.id,
-            date: dateStr,
-            completed: true, // Default to completed when created
-            count: 1,
-            notes: ''
-          }])
-          .select();
-          
-        if (error) {
-          console.error('Error creating habit log:', error);
-          throw error;
+        const response = await fetch(`http://localhost:3002/api/habit-logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ habit_id: habit.id, date: dateStr, userId: currentUser.id })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
-        
-        if (data && data[0]) {
-          // Add new log to state
-          setHabitLogs([...habitLogs, data[0]]);
-        } else {
-          console.error('No data returned from insert operation');
-          throw new Error('Failed to create habit log');
-        }
-      }
+        const updatedLog = await response.json();
+
+        // Update state with confirmed data
+        setHabitLogs(prevLogs => {
+            const existingLogIndex = prevLogs.findIndex(log => log.id === updatedLog.data.id || (log.habit_id === updatedLog.data.habit_id && log.date === updatedLog.data.date));
+            if (existingLogIndex > -1) {
+                const newLogs = [...prevLogs];
+                newLogs[existingLogIndex] = updatedLog.data;
+                return newLogs;
+            } else {
+                return [...prevLogs, updatedLog.data];
+            }
+        });
     } catch (error) {
-      console.error('Error toggling habit log:', error.message);
-      setError('Failed to update habit log. Please try again.');
+        console.error('Error toggling habit log:', error.message);
+        setError(`Failed to update habit log: ${error.message}. Please try again.`);
+        // TODO: Revert optimistic update if implemented
     }
   };
-  
-  // Handler for decrementing habit count
+
+  // Decrement Habit Count
   const handleDecrementHabitCount = async (habit, date) => {
-    try {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      
-      // Check if a log exists for this habit and date
-      const existingLog = habitLogs.find(log => 
-        log.habit_id === habit.id && log.date === dateStr
-      );
-      
-      if (existingLog && existingLog.count > 0) {
-        const newCount = existingLog.count - 1;
-        
-        // If count becomes 0, decide whether to delete the log or keep it with notes
-        if (newCount === 0 && !existingLog.notes) {
-          // Delete the log if there are no notes
-          const { error } = await supabase
-            .from('habit_logs')
-            .delete()
-            .eq('id', existingLog.id);
-            
-          if (error) throw error;
-          
-          // Remove log from state
-          setHabitLogs(habitLogs.filter(log => log.id !== existingLog.id));
-        } else {
-          // Update the log with decremented count
-          const { error } = await supabase
-            .from('habit_logs')
-            .update({ 
-              count: newCount,
-              completed: newCount >= (habit.target_per_day || 1) // Update completion status
-            })
-            .eq('id', existingLog.id);
-            
-          if (error) throw error;
-          
-          // Update log in state
-          setHabitLogs(habitLogs.map(log => 
-            log.id === existingLog.id 
-              ? { 
-                  ...log, 
-                  count: newCount,
-                  completed: newCount >= (habit.target_per_day || 1)
-                } 
-              : log
-          ));
-        }
-        
-        setError(null); // Clear any previous errors
-      }
-    } catch (error) {
-      console.error('Error decrementing habit count:', error.message);
-      setError('Failed to update habit count. Please try again.');
-    }
+    // --- TODO: Implement Decrement Logic ---
+    console.log("TODO: Implement handleDecrementHabitCount");
+    setError('Decrementing habit count is not yet implemented.');
   };
-  
+
+  // Save Note
+  const saveNote = async () => {
+    // --- TODO: Implement Save Note Logic ---
+    console.log("TODO: Implement saveNote");
+    setError('Saving notes is not yet implemented.');
+    closeNoteEditor(); // Close editor for now
+  };
+
+
+  // --- Helper Functions (No changes needed below) ---
+
   const handleViewChange = (event, newView) => {
     if (newView !== null) {
       setViewType(newView);
     }
   };
-  
+
   const handlePreviousPeriod = () => {
     if (viewType === 'week') {
       setCurrentDate(subDays(currentDate, 7));
@@ -448,7 +379,7 @@ const HabitTracker = () => {
       setCurrentDate(addYears(currentDate, -1));
     }
   };
-  
+
   const handleNextPeriod = () => {
     if (viewType === 'week') {
       setCurrentDate(addDays(currentDate, 7));
@@ -458,83 +389,30 @@ const HabitTracker = () => {
       setCurrentDate(addYears(currentDate, 1));
     }
   };
-  
+
   const handleToday = () => {
     setCurrentDate(new Date());
   };
-  
+
   // Wrapper functions for the utilities
   const isHabitCompleted = (habit, date) => {
     return checkHabitCompleted(habit, date, habitLogs);
   };
-  
+
   const getHabitNote = (habit, date) => {
     return getHabitNoteText(habit, date, habitLogs);
   };
-  
+
   const openNoteEditor = (habit, date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
     setEditingCell({ habitId: habit.id, date: dateStr });
     setNoteText(getHabitNote(habit, date));
   };
-  
+
   const handleNoteChange = (e) => {
     setNoteText(e.target.value);
   };
-  
-  const saveNote = async () => {
-    if (!editingCell) return;
-    
-    try {
-      const { habitId, date } = editingCell;
-      
-      // Check if a log exists for this habit and date
-      const existingLog = habitLogs.find(log => 
-        log.habit_id === habitId && log.date === date
-      );
-      
-      if (existingLog) {
-        // Update existing log
-        const { error } = await supabase
-          .from('habit_logs')
-          .update({ notes: noteText })
-          .eq('id', existingLog.id);
-          
-        if (error) throw error;
-        
-        // Update log in state
-        setHabitLogs(habitLogs.map(log => 
-          log.id === existingLog.id 
-            ? { ...log, notes: noteText } 
-            : log
-        ));
-      } else {
-        // Create a new log
-        const { data, error } = await supabase
-          .from('habit_logs')
-          .insert([{
-            habit_id: habitId,
-            date: date,
-            completed: false,
-            notes: noteText
-          }])
-          .select();
-          
-        if (error) throw error;
-        
-        // Add new log to state
-        setHabitLogs([...habitLogs, data[0]]);
-      }
-      
-      // Close note editor
-      setEditingCell(null);
-      setNoteText('');
-    } catch (error) {
-      console.error('Error saving note:', error.message);
-      setError('Failed to save note. Please try again.');
-    }
-  };
-  
+
   const closeNoteEditor = () => {
     setEditingCell(null);
     setNoteText('');
@@ -558,23 +436,24 @@ const HabitTracker = () => {
           </Typography>
         </Grid>
         <Grid item>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenForm()}
+            disabled={!currentUser} // Disable if not logged in
           >
             Add Habit
           </Button>
         </Grid>
       </Grid>
-      
+
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      
-      {habits.length === 0 ? (
+
+      {habits.length === 0 && !loading ? (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="body1">
             You haven't added any habits yet. Click "Add Habit" to start tracking your habits.
@@ -593,14 +472,14 @@ const HabitTracker = () => {
               <Button onClick={handleNextPeriod} sx={{ mr: 3 }}>
                 Next
               </Button>
-              
+
               <Typography variant="h6">
                 {viewType === 'week' && `Week of ${format(dateRange[0] || currentDate, 'dd MMM yyyy')}`}
                 {viewType === 'month' && format(currentDate, 'MMMM yyyy')}
                 {viewType === 'year' && format(currentDate, 'yyyy')}
               </Typography>
             </Box>
-            
+
             <ToggleButtonGroup
               value={viewType}
               exclusive
@@ -620,7 +499,7 @@ const HabitTracker = () => {
               </ToggleButton>
             </ToggleButtonGroup>
           </Box>
-          
+
           {viewType === 'week' && (
             <WeekView
               habits={habits}
@@ -629,12 +508,13 @@ const HabitTracker = () => {
               getHabitNote={getHabitNote}
               handleToggleHabitLog={handleToggleHabitLog}
               openNoteEditor={openNoteEditor}
-              handleDeleteHabit={handleDeleteHabit}
+              handleDeleteHabit={handleDeleteHabit} // Pass delete handler
+              handleEditHabit={handleOpenForm} // Pass edit handler
               handleDecrementHabitCount={handleDecrementHabitCount}
               habitLogs={habitLogs}
             />
           )}
-          
+
           {viewType === 'month' && (
             <MonthView
               habits={habits}
@@ -645,7 +525,7 @@ const HabitTracker = () => {
               habitLogs={habitLogs}
             />
           )}
-          
+
           {viewType === 'year' && (
             <YearView
               habits={habits}
@@ -657,7 +537,7 @@ const HabitTracker = () => {
           )}
         </>
       )}
-      
+
       {/* Habit Form */}
       <HabitForm
         open={openForm}
@@ -676,7 +556,7 @@ const HabitTracker = () => {
         handleSaveHabit={handleSaveHabit}
         colorOptions={colorOptions}
       />
-      
+
       {/* Note Editor */}
       <NoteEditor
         editingCell={editingCell}

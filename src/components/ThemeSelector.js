@@ -18,7 +18,7 @@ import TextIncreaseIcon from '@mui/icons-material/TextIncrease';
 import SettingsIcon from '@mui/icons-material/Settings';
 import CheckIcon from '@mui/icons-material/Check';
 
-import { ThemeContext, TEXT_SIZES } from '../context/ThemeContext';
+import { ThemeContext } from '../context/ThemeContext'; // Removed TEXT_SIZES
 
 /**
  * Theme selector component that allows users to toggle between light/dark mode
@@ -41,21 +41,9 @@ const ThemeSelector = () => {
     changeTextSize(size);
     handleClose();
   };
-  
-  // Get icon based on current text size
-  const getTextSizeIcon = () => {
-    switch(textSize) {
-      case 'small':
-        return <TextDecreaseIcon />;
-      case 'large':
-        return <TextIncreaseIcon />;
-      case 'extraLarge':
-        return <TextIncreaseIcon fontSize="large" />;
-      default:
-        return <TextFieldsIcon />;
-    }
-  };
-  
+
+  // Removed unused getTextSizeIcon function
+
   return (
     <Box>
       <Tooltip title="Appearance Settings">

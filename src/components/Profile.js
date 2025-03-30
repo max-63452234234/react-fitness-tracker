@@ -23,16 +23,20 @@ import {
 } from '@mui/material';
 import FitnessCenterIcon from '@mui/icons-material/FitnessCenter';
 import FastfoodIcon from '@mui/icons-material/Fastfood';
-import { supabase } from '../index.js';
+// import { supabase } from '../index.js'; // REMOVED Supabase import
 import { Link } from 'react-router-dom';
+import AddExerciseForm from './settings/AddExerciseForm'; // Import the new form
+import ManageExercises from './settings/ManageExercises'; // Import the management component
 
 /**
  * Profile component for viewing and updating user profile information
+ * @param {Object} props - Component props
+ * @param {Object} props.currentUser - Current user object (e.g., { id: userId })
  */
-const Profile = () => {
+const Profile = ({ currentUser }) => { // Accept currentUser prop
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [user, setUser] = useState(null);
+  // const [user, setUser] = useState(null); // No longer needed, use currentUser
   const [profile, setProfile] = useState({
     full_name: '',
     age: '',
@@ -42,117 +46,114 @@ const Profile = () => {
   });
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [userEmail] = useState(''); // State to store email separately - Removed unused setUserEmail
 
   useEffect(() => {
     const getProfile = async () => {
+      if (!currentUser || !currentUser.id) {
+        setError('User not logged in.');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          throw new Error('User not found');
+        const userId = currentUser.id;
+
+        // --- Fetch profile data from backend ---
+        const response = await fetch(`http://localhost:3002/api/profiles/${userId}`);
+
+        if (response.status === 404) {
+          // Profile doesn't exist yet, keep default empty state
+          console.log("Profile not found for user, using defaults.");
+          // Optionally fetch email if needed, though it's not stored in profile table
+          // For now, we'll leave email blank or get it from currentUser if passed differently
+        } else if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        } else {
+          const data = await response.json();
+          if (data.data) {
+            setProfile({
+              full_name: data.data.full_name || '',
+              age: data.data.age || '',
+              gender: data.data.gender || '',
+              height: data.data.height || '',
+              fitness_goal: data.data.fitness_goal || ''
+            });
+          }
         }
-        
-        setUser(user);
-        
-        // Get profile data
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        if (error && error.code !== 'PGRST116') {
-          throw error;
-        }
-        
-        if (data) {
-          setProfile({
-            full_name: data.full_name || '',
-            age: data.age || '',
-            gender: data.gender || '',
-            height: data.height || '',
-            fitness_goal: data.fitness_goal || ''
-          });
-        }
+        // TODO: Fetch user email separately if needed (e.g., from a /api/users/:userId endpoint)
+        // setUserEmail(currentUser.email || 'Email not available'); // Assuming email might be in currentUser
+
       } catch (error) {
         console.error('Error loading profile:', error.message);
-        setError('Error loading profile data');
+        setError(`Error loading profile data: ${error.message}`);
       } finally {
         setLoading(false);
       }
     };
-    
+
     getProfile();
-  }, []);
-  
+  }, [currentUser]); // Re-fetch if currentUser changes
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setProfile({
       ...profile,
-      [name]: value
+      // Convert empty string back to null for numeric fields if needed by backend/db
+      [name]: (name === 'age' || name === 'height') && value === '' ? null : value
     });
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    if (!currentUser || !currentUser.id) {
+      setError('User not logged in.');
+      return;
+    }
+
     try {
       setUpdating(true);
       setError(null);
       setSuccess(false);
-      
-      if (!user) throw new Error('No user found');
-      
-      // Check if profile exists
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-      
-      let error;
-      
-      if (existingProfile) {
-        // Update existing profile
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            full_name: profile.full_name,
-            age: profile.age || null,
-            gender: profile.gender || null,
-            height: profile.height || null,
-            fitness_goal: profile.fitness_goal || null,
-            updated_at: new Date()
-          })
-          .eq('id', user.id);
-          
-        error = updateError;
-      } else {
-        // Insert new profile
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: user.id,
+      const userId = currentUser.id;
+
+      // --- Update profile data via backend ---
+      const response = await fetch(`http://localhost:3002/api/profiles/${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              // Send only profile fields, not the whole currentUser object
               full_name: profile.full_name,
-              age: profile.age || null,
+              age: profile.age || null, // Send null if empty
               gender: profile.gender || null,
               height: profile.height || null,
-              fitness_goal: profile.fitness_goal || null,
-              created_at: new Date(),
-              updated_at: new Date()
-            }
-          ]);
-          
-        error = insertError;
+              fitness_goal: profile.fitness_goal || null
+          })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-      
-      if (error) throw error;
-      
+
+      const updatedData = await response.json();
+      console.log("Profile update response:", updatedData); // Log response for debugging
+
+      // Optionally update local state if backend returns the updated profile
+      if (updatedData.data) {
+           setProfile({
+             full_name: updatedData.data.full_name || '',
+             age: updatedData.data.age || '',
+             gender: updatedData.data.gender || '',
+             height: updatedData.data.height || '',
+             fitness_goal: updatedData.data.fitness_goal || ''
+           });
+      }
+
       setSuccess(true);
     } catch (error) {
       console.error('Error updating profile:', error.message);
@@ -162,7 +163,16 @@ const Profile = () => {
       setUpdating(false);
     }
   };
-  
+
+  // Callback for when a new exercise is added via the form
+  // TODO: Implement logic to refresh common exercises list if needed
+  const handleExerciseAdded = (newExercise) => {
+    console.log("New exercise added:", newExercise);
+    // Potentially trigger a refresh of the common exercises list used elsewhere
+    // Maybe pass fetchExercises from ManageExercises down? Or use context.
+  };
+
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -176,29 +186,31 @@ const Profile = () => {
       <Typography variant="h4" component="h1" gutterBottom>
         Profile
       </Typography>
-      
+
       <Grid container spacing={3}>
         <Grid item xs={12} md={7}>
+          {/* Profile Update Form */}
           <Paper sx={{ p: 4 }}>
             {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
+              <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
                 {error}
               </Alert>
             )}
-            
+
             {success && (
-              <Alert severity="success" sx={{ mb: 3 }}>
+              <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccess(false)}>
                 Profile updated successfully!
               </Alert>
             )}
-            
+
             <Grid container spacing={3} component="form" onSubmit={handleSubmit}>
               <Grid item xs={12}>
                 <Typography variant="subtitle1" gutterBottom>
-                  Email: {user?.email}
+                  {/* Display email if available */}
+                  Email: {userEmail || '(Email not loaded)'}
                 </Typography>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -210,20 +222,20 @@ const Profile = () => {
                   disabled={updating}
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Age"
                   name="age"
                   type="number"
-                  value={profile.age}
+                  value={profile.age ?? ''} // Use nullish coalescing for controlled input
                   onChange={handleChange}
                   disabled={updating}
                   inputProps={{ min: 0 }}
                 />
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <FormControl fullWidth>
                   <InputLabel id="gender-label">Gender</InputLabel>
@@ -231,7 +243,7 @@ const Profile = () => {
                     labelId="gender-label"
                     id="gender"
                     name="gender"
-                    value={profile.gender}
+                    value={profile.gender ?? ''} // Use nullish coalescing
                     label="Gender"
                     onChange={handleChange}
                     disabled={updating}
@@ -243,20 +255,20 @@ const Profile = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
                   label="Height (cm)"
                   name="height"
                   type="number"
-                  value={profile.height}
+                  value={profile.height ?? ''} // Use nullish coalescing
                   onChange={handleChange}
                   disabled={updating}
-                  inputProps={{ min: 0 }}
+                  inputProps={{ min: 0, step: "0.1" }} // Allow decimals
                 />
               </Grid>
-              
+
               <Grid item xs={12}>
                 <FormControl fullWidth>
                   <InputLabel id="fitness-goal-label">Fitness Goal</InputLabel>
@@ -264,7 +276,7 @@ const Profile = () => {
                     labelId="fitness-goal-label"
                     id="fitness_goal"
                     name="fitness_goal"
-                    value={profile.fitness_goal}
+                    value={profile.fitness_goal ?? ''} // Use nullish coalescing
                     label="Fitness Goal"
                     onChange={handleChange}
                     disabled={updating}
@@ -278,12 +290,12 @@ const Profile = () => {
                   </Select>
                 </FormControl>
               </Grid>
-              
+
               <Grid item xs={12} sx={{ mt: 2 }}>
                 <Button
                   type="submit"
                   variant="contained"
-                  disabled={updating}
+                  disabled={updating || !currentUser} // Disable if not logged in
                   sx={{ mr: 2 }}
                 >
                   {updating ? <CircularProgress size={24} /> : 'Update Profile'}
@@ -291,8 +303,15 @@ const Profile = () => {
               </Grid>
             </Grid>
           </Paper>
+
+          {/* Add Custom Exercise Form */}
+          <AddExerciseForm onExerciseAdded={handleExerciseAdded} />
+
+          {/* Manage Exercises List */}
+          <ManageExercises />
+
         </Grid>
-        
+
         {/* Templates and Personalization Section */}
         <Grid item xs={12} md={5}>
           <Card>
@@ -301,10 +320,10 @@ const Profile = () => {
                 Your Templates & Settings
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              
+
               <List disablePadding>
-                <ListItem component={Link} to="/workout-templates" sx={{ 
-                  textDecoration: 'none', 
+                <ListItem component={Link} to="/workout-templates" sx={{
+                  textDecoration: 'none',
                   color: 'inherit',
                   borderRadius: 1,
                   '&:hover': { bgcolor: 'rgba(33, 150, 243, 0.1)' }
@@ -312,14 +331,14 @@ const Profile = () => {
                   <ListItemIcon>
                     <FitnessCenterIcon color="primary" />
                   </ListItemIcon>
-                  <ListItemText 
-                    primary="Workout Templates" 
+                  <ListItemText
+                    primary="Workout Templates"
                     secondary="Manage your workout routines"
                   />
                 </ListItem>
-                
-                <ListItem component={Link} to="/meal-templates" sx={{ 
-                  textDecoration: 'none', 
+
+                <ListItem component={Link} to="/meal-templates" sx={{
+                  textDecoration: 'none',
                   color: 'inherit',
                   borderRadius: 1,
                   '&:hover': { bgcolor: 'rgba(33, 150, 243, 0.1)' }
@@ -327,19 +346,19 @@ const Profile = () => {
                   <ListItemIcon>
                     <FastfoodIcon color="primary" />
                   </ListItemIcon>
-                  <ListItemText 
-                    primary="Meal Templates" 
+                  <ListItemText
+                    primary="Meal Templates"
                     secondary="Manage your meal plans"
                   />
                 </ListItem>
               </List>
             </CardContent>
             <CardActions>
-              <Button 
-                component={Link} 
+              <Button
+                component={Link}
                 to="/workouts"
-                variant="contained" 
-                color="primary" 
+                variant="contained"
+                color="primary"
                 fullWidth
                 sx={{ mt: 1 }}
               >

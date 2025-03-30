@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'; // Added useCallback
 import {
   Box,
   Typography,
@@ -8,7 +8,8 @@ import {
   Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import { supabase } from '../../index.js';
+// import { supabase } from '../../index.js'; // REMOVED Supabase import
+import { useNavigate } from 'react-router-dom'; // Added for navigation
 
 // Import components
 import TemplateList from './TemplateList';
@@ -18,87 +19,91 @@ import ExerciseFormDialog from './forms/ExerciseFormDialog';
 /**
  * WorkoutTemplates component
  * Allows users to create, edit, and use workout templates
+ * @param {Object} props - Component props
+ * @param {Object} props.currentUser - Current user object (e.g., { id: userId })
  */
-const WorkoutTemplates = () => {
+const WorkoutTemplates = ({ currentUser }) => { // Accept currentUser prop
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
-  
+  // const [userId, setUserId] = useState(null); // Use currentUser.id
+
   // Template form state
   const [openTemplateForm, setOpenTemplateForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
-  
+
   // Exercise form state
   const [openExerciseForm, setOpenExerciseForm] = useState(false);
   const [templateExercises, setTemplateExercises] = useState([]);
-  const [currentExercise, setCurrentExercise] = useState({
-    name: '',
-    sets: '',
-    reps: '',
-    weight: ''
-  });
-  
-  // Common exercises
+  const [loadingExercises, setLoadingExercises] = useState(false); // Separate loading for exercises
+  const [currentExercise, setCurrentExercise] = useState({ name: '', sets: '', reps: '', weight: '' }); // Added state for the exercise being added/edited in the dialog
+
+  // Common exercises (Fetching removed, pass empty array for now)
   const [commonExercises, setCommonExercises] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [exercisesByCategory, setExercisesByCategory] = useState({});
-  
+
+  // Fetch initial templates
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchTemplates = async () => {
+      if (!currentUser || !currentUser.id) {
+        console.log("WorkoutTemplates: No current user found.");
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
-        
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setUserId(user.id);
-        
-        // Fetch templates
-        const { data: templateData, error: templateError } = await supabase
-          .from('workout_templates')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('name');
-          
-        if (templateError) throw templateError;
-        setTemplates(templateData || []);
-        
-        // Fetch common exercises
-        const { data: exerciseData, error: exerciseError } = await supabase
-          .from('common_exercises')
-          .select('*')
-          .order('name');
-          
-        if (exerciseError) throw exerciseError;
-        setCommonExercises(exerciseData || []);
-        
-        // Group exercises by category
-        const uniqueCategories = [...new Set(exerciseData.map(ex => ex.category))];
-        setCategories(uniqueCategories);
-        
-        const exerciseGroups = {};
-        uniqueCategories.forEach(category => {
-          exerciseGroups[category] = exerciseData.filter(ex => ex.category === category);
-        });
-        setExercisesByCategory(exerciseGroups);
-        
+        setError(null);
+        const userId = currentUser.id;
+
+        // --- Fetch templates from backend ---
+        const response = await fetch(`http://localhost:3002/api/workout-templates?userId=${userId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        setTemplates(data.data || []);
+
+        // --- Fetch common exercises ---
+        try {
+            const commonExResponse = await fetch('http://localhost:3002/api/common-exercises');
+            if (!commonExResponse.ok) {
+                console.error("Failed to fetch common exercises for template form");
+                setCommonExercises([]); // Set empty on failure
+            } else {
+                const commonExData = await commonExResponse.json();
+                setCommonExercises(commonExData.data || []);
+                // TODO: Process categories/exercisesByCategory if needed by ExerciseFormDialog
+                setCategories([]); // Keep empty for now
+                setExercisesByCategory({}); // Keep empty for now
+            }
+        } catch (commonExError) {
+             console.error('Error fetching common exercises:', commonExError.message);
+             setCommonExercises([]);
+             setCategories([]);
+             setExercisesByCategory({});
+        }
+
+
       } catch (error) {
-        console.error('Error fetching data:', error.message);
-        setError('Failed to load data. Please try again.');
+        console.error('Error fetching templates:', error.message);
+        setError(`Failed to load templates: ${error.message}. Please try again.`);
+        setTemplates([]);
       } finally {
         setLoading(false);
       }
     };
-    
-    fetchData();
-  }, []);
-  
+
+    fetchTemplates();
+  }, [currentUser]); // Re-fetch if user changes
+
   const handleOpenTemplateForm = (template = null) => {
+    setError(null);
     if (template) {
       setSelectedTemplate(template);
       setTemplateName(template.name);
@@ -112,366 +117,277 @@ const WorkoutTemplates = () => {
     }
     setOpenTemplateForm(true);
   };
-  
+
   const handleCloseTemplateForm = () => {
     setOpenTemplateForm(false);
-    setSelectedTemplate(null);
+    setSelectedTemplate(null); // Clear selected template on close
     setTemplateName('');
     setTemplateDescription('');
     setEditMode(false);
+    setError(null);
   };
-  
+
+  // Fetch exercises when opening the exercise form
   const handleOpenExerciseForm = async (template) => {
+     if (!currentUser?.id) return;
     try {
-      setSelectedTemplate(template);
-      setLoading(true);
-      
-      // Fetch exercises for this template
-      const { data, error } = await supabase
-        .from('template_exercises')
-        .select('*')
-        .eq('template_id', template.id)
-        .order('order_index');
-        
-      if (error) throw error;
-      
-      setTemplateExercises(data || []);
+      setSelectedTemplate(template); // Set the selected template
+      setLoadingExercises(true);
+      setError(null);
+      setTemplateExercises([]); // Clear previous exercises
+
+      // --- Fetch exercises for this template from backend ---
+      const response = await fetch(`http://localhost:3002/api/workout-templates/${template.id}/exercises?userId=${currentUser.id}`); // Pass userId for auth check
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setTemplateExercises(data.data || []);
       setOpenExerciseForm(true);
+
     } catch (error) {
       console.error('Error fetching template exercises:', error.message);
-      setError('Failed to load template exercises. Please try again.');
+      setError(`Failed to load exercises for ${template.name}: ${error.message}.`);
+      setOpenExerciseForm(false); // Don't open form if fetch fails
+      setSelectedTemplate(null);
     } finally {
-      setLoading(false);
+      setLoadingExercises(false);
     }
   };
-  
+
   const handleCloseExerciseForm = () => {
     setOpenExerciseForm(false);
     setSelectedTemplate(null);
     setTemplateExercises([]);
-    setCurrentExercise({
-      name: '',
-      sets: '',
-      reps: '',
-      weight: ''
-    });
     setSelectedCategory('');
+    setError(null);
   };
-  
+
+  // Handler for changes within the ExerciseFormDialog's fields
+  // Wrap in useCallback to stabilize the function reference
+  const handleExerciseChange = useCallback((e) => {
+      const { name, value } = e.target;
+      // Use functional update form of setState
+      setCurrentExercise(prev => ({ ...prev, [name]: value }));
+  }, []); // Empty dependency array as it only uses setCurrentExercise
+
+
+  // Save Template (Create or Update)
   const handleSaveTemplate = async () => {
+    if (!currentUser?.id) return;
     if (!templateName.trim()) {
       setError('Please enter a template name');
       return;
     }
-    
+    setError(null);
+
+    const templateData = {
+      userId: currentUser.id,
+      name: templateName.trim(),
+      description: templateDescription.trim()
+    };
+
     try {
-      if (editMode) {
+      let response;
+      let updatedTemplateData;
+
+      if (editMode && selectedTemplate) {
         // Update existing template
-        const { error } = await supabase
-          .from('workout_templates')
-          .update({
-            name: templateName.trim(),
-            description: templateDescription.trim()
-          })
-          .eq('id', selectedTemplate.id);
-          
-        if (error) throw error;
-        
-        // Update template in state
-        setTemplates(templates.map(t => 
-          t.id === selectedTemplate.id 
-            ? { ...t, name: templateName.trim(), description: templateDescription.trim() } 
-            : t
-        ));
+        response = await fetch(`http://localhost:3002/api/workout-templates/${selectedTemplate.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(templateData)
+        });
       } else {
         // Create new template
-        const { data, error } = await supabase
-          .from('workout_templates')
-          .insert([{
-            user_id: userId,
-            name: templateName.trim(),
-            description: templateDescription.trim()
-          }])
-          .select();
-          
-        if (error) throw error;
-        
-        // Add new template to state
-        setTemplates([...templates, data[0]]);
+        response = await fetch(`http://localhost:3002/api/workout-templates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(templateData)
+        });
       }
-      
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      updatedTemplateData = await response.json();
+
+      // Update state
+      if (editMode) {
+        setTemplates(templates.map(t =>
+          t.id === selectedTemplate.id ? updatedTemplateData.data : t
+        ));
+      } else {
+        setTemplates([...templates, updatedTemplateData.data]);
+      }
+
       handleCloseTemplateForm();
     } catch (error) {
       console.error('Error saving template:', error.message);
-      setError('Failed to save template. Please try again.');
+      setError(`Failed to save template: ${error.message}. Please try again.`);
     }
   };
-  
+
+  // Delete Template
   const handleDeleteTemplate = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this template? This will delete all exercises in this template.')) {
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('workout_templates')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      // Remove template from state
-      setTemplates(templates.filter(t => t.id !== id));
-    } catch (error) {
-      console.error('Error deleting template:', error.message);
-      setError('Failed to delete template. Please try again.');
-    }
-  };
-  
-  const handleExerciseChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentExercise(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-  
-  const handleSelectCommonExercise = (exerciseName) => {
-    setCurrentExercise(prev => ({
-      ...prev,
-      name: exerciseName
-    }));
-  };
-  
+     if (!currentUser?.id) return;
+
+     if (!window.confirm('Are you sure you want to delete this template? This will delete all exercises in this template.')) {
+       return;
+     }
+     setError(null);
+
+     try {
+       const response = await fetch(`http://localhost:3002/api/workout-templates/${id}`, {
+           method: 'DELETE',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ userId: currentUser.id }) // Pass userId until JWT
+       });
+
+       if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+       }
+
+       // Remove template from state
+       setTemplates(templates.filter(t => t.id !== id));
+
+     } catch (error) {
+       console.error('Error deleting template:', error.message);
+       setError(`Failed to delete template: ${error.message}. Please try again.`);
+     }
+   };
+
+  // Add Exercise to Template
   const handleAddExercise = async (exerciseData) => {
-    // Basic validation
-    if (!exerciseData.name.trim()) {
-      setError('Exercise name is required');
-      return;
-    }
-    
-    // Validate based on exercise type
-    if (exerciseData.exercise_type === 'weight_based' && 
-        (!exerciseData.sets || !exerciseData.reps)) {
-      setError('Sets and reps are required for weight-based exercises');
-      return;
-    } else if ((exerciseData.exercise_type === 'cardio_time' || 
-               exerciseData.exercise_type === 'time_based') && 
-               !exerciseData.duration) {
-      setError('Duration is required for time-based exercises');
-      return;
-    } else if (exerciseData.exercise_type === 'cardio_distance' && 
-              (!exerciseData.distance || !exerciseData.distance_unit)) {
-      setError('Distance and unit are required for distance-based exercises');
-      return;
-    }
-    
-    try {
-      const orderIndex = templateExercises.length;
-      
-      // Prepare exercise data based on type
-      const exerciseToInsert = { 
-        template_id: selectedTemplate.id,
-        name: exerciseData.name.trim(),
-        exercise_type: exerciseData.exercise_type,
-        order_index: orderIndex,
-        // Always include sets and reps as they're required by the database schema
-        sets: exerciseData.sets || 1,
-        reps: exerciseData.reps || 1
-      };
-      
-      // Add type-specific fields
-      if (exerciseData.exercise_type === 'weight_based') {
-        exerciseToInsert.weight = exerciseData.weight || 0;
-      } else if (exerciseData.exercise_type === 'cardio_distance') {
-        exerciseToInsert.distance = exerciseData.distance;
-        exerciseToInsert.distance_unit = exerciseData.distance_unit;
-        if (exerciseData.duration) {
-          exerciseToInsert.duration = exerciseData.duration;
-        }
-      } else if (exerciseData.exercise_type === 'cardio_time' || 
-                exerciseData.exercise_type === 'time_based') {
-        // Make sure duration is a number
-        exerciseToInsert.duration = typeof exerciseData.duration === 'number' 
-          ? exerciseData.duration 
-          : parseInt(exerciseData.duration) || 0;
-        if (exerciseData.intensity) {
-          exerciseToInsert.intensity = exerciseData.intensity;
-        }
-      }
-      
-      const { data, error } = await supabase
-        .from('template_exercises')
-        .insert([exerciseToInsert])
-        .select();
-        
-      if (error) throw error;
-      
-      // Add to state
-      setTemplateExercises([...templateExercises, data[0]]);
-      
-      // Reset form
-      setCurrentExercise({
-        name: '',
-        sets: '',
-        reps: '',
-        weight: ''
-      });
-    } catch (error) {
-      console.error('Error adding exercise:', error.message);
-      setError('Failed to add exercise. Please try again.');
-    }
-  };
-  
-  const handleDeleteExercise = async (id) => {
-    try {
-      const { error } = await supabase
-        .from('template_exercises')
-        .delete()
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      // Update exercise orders
-      const remainingExercises = templateExercises.filter(e => e.id !== id);
-      const updatedExercises = remainingExercises.map((exercise, index) => ({
-        ...exercise,
-        order_index: index
-      }));
-      
-      // Update order indexes in database
-      for (const exercise of updatedExercises) {
-        await supabase
-          .from('template_exercises')
-          .update({ order_index: exercise.order_index })
-          .eq('id', exercise.id);
-      }
-      
-      // Update state
-      setTemplateExercises(updatedExercises);
-    } catch (error) {
-      console.error('Error deleting exercise:', error.message);
-      setError('Failed to delete exercise. Please try again.');
-    }
-  };
-  
+     if (!currentUser?.id || !selectedTemplate?.id) return;
+     setError(null);
+
+     // Basic validation (can be enhanced in ExerciseFormDialog)
+     if (!exerciseData.name.trim() || !exerciseData.sets || !exerciseData.reps) {
+       setError('Exercise name, sets, and reps are required');
+       return;
+     }
+
+     const exerciseToInsert = {
+         userId: currentUser.id, // Pass for potential backend checks
+         name: exerciseData.name.trim(),
+         sets: parseInt(exerciseData.sets),
+         reps: parseInt(exerciseData.reps),
+         weight: exerciseData.weight ? parseFloat(exerciseData.weight) : null,
+         order_index: templateExercises.length // Simple ordering for now
+         // Note: exercise_type is not currently handled by backend for templates
+     };
+
+     try {
+         const response = await fetch(`http://localhost:3002/api/workout-templates/${selectedTemplate.id}/exercises`, {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(exerciseToInsert)
+         });
+
+         if (!response.ok) {
+             const errorData = await response.json();
+             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+         }
+
+         const newExercise = await response.json();
+
+         // Add to state
+         setTemplateExercises([...templateExercises, newExercise.data]);
+
+     } catch (error) {
+         console.error('Error adding exercise:', error.message);
+         setError(`Failed to add exercise: ${error.message}. Please try again.`);
+     }
+   };
+
+  // Delete Exercise from Template
+  const handleDeleteExercise = async (exerciseId) => {
+     if (!currentUser?.id) return;
+     setError(null);
+
+     try {
+         const response = await fetch(`http://localhost:3002/api/template-exercises/${exerciseId}`, {
+             method: 'DELETE',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ userId: currentUser.id }) // Pass userId until JWT
+         });
+
+         if (!response.ok) {
+             const errorData = await response.json();
+             throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+         }
+
+         // Update state (and potentially re-order if needed)
+         const remainingExercises = templateExercises.filter(e => e.id !== exerciseId);
+         // Simple re-ordering based on new array index
+         const updatedExercises = remainingExercises.map((ex, index) => ({ ...ex, order_index: index }));
+         setTemplateExercises(updatedExercises);
+
+         // TODO: Optionally, could make backend calls here to update order_index
+         // for remaining exercises if strict ordering is critical.
+
+     } catch (error) {
+         console.error('Error deleting exercise:', error.message);
+         setError(`Failed to delete exercise: ${error.message}. Please try again.`);
+     }
+   };
+
+  const navigate = useNavigate(); // Added hook
+
+  // Use Template to Create Workout
   const handleUseTemplate = async (template) => {
+    if (!currentUser?.id || !template?.id) return;
+    setError(null);
+    // Consider adding a loading state specific to this action if needed
+    console.log(`Using template: ${template.name}`);
+
     try {
-      // Fetch exercises for this template
-      const { data: exerciseData, error: exerciseError } = await supabase
-        .from('template_exercises')
-        .select('*')
-        .eq('template_id', template.id)
-        .order('order_index');
-        
-      if (exerciseError) throw exerciseError;
-      
-      // Create a new workout
-      const today = new Date().toISOString().split('T')[0];
-      const { data: workoutData, error: workoutError } = await supabase
-        .from('workouts')
-        .insert([{
-          user_id: userId,
-          date: today,
-          notes: `Created from template: ${template.name}`
-        }])
-        .select();
-        
-      if (workoutError) throw workoutError;
-      
-      // Add exercises to workout
-      const workoutId = workoutData[0].id;
-      const exercisesToInsert = exerciseData.map(e => {
-        // Create base exercise data
-        const exercise = {
-          workout_id: workoutId,
-          name: e.name,
-          exercise_type: e.exercise_type || 'weight_based' // Default to weight_based for backwards compatibility
-        };
-        
-        // Add type-specific fields
-        if (!e.exercise_type || e.exercise_type === 'weight_based') {
-          exercise.sets = e.sets;
-          exercise.reps = e.reps;
-          exercise.weight = e.weight;
-        } else if (e.exercise_type === 'cardio_distance') {
-          exercise.distance = e.distance;
-          exercise.distance_unit = e.distance_unit;
-          exercise.duration = e.duration;
-        } else if (e.exercise_type === 'cardio_time' || e.exercise_type === 'time_based') {
-          exercise.duration = e.duration;
-          if (e.intensity) {
-            exercise.intensity = e.intensity;
-          }
-        }
-        
-        return exercise;
-      });
-      
-      if (exercisesToInsert.length > 0) {
-        const { error: insertError } = await supabase
-          .from('exercises')
-          .insert(exercisesToInsert);
-          
-        if (insertError) throw insertError;
+      // 1. Fetch exercises for the selected template
+      const response = await fetch(`http://localhost:3002/api/workout-templates/${template.id}/exercises?userId=${currentUser.id}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
-      
-      // Redirect to workouts page
-      window.location.href = '/workouts';
+      const data = await response.json();
+      const fetchedTemplateExercises = data.data || [];
+
+      // 2. Map template exercises to the format expected by WorkoutForm
+      //    (Assuming template exercises are primarily weight-based for now)
+      //    NOTE: Template exercises currently only store name, sets, reps, weight, order_index
+      const mappedExercises = fetchedTemplateExercises.map(ex => ({
+        name: ex.name,
+        exercise_type: 'weight_based', // Default type for template exercises
+        sets: ex.sets,
+        reps: ex.reps,
+        weight: ex.weight !== null ? ex.weight : 0, // Use 0 if weight is null
+        // Add other fields as null/default if needed by WorkoutForm's state structure
+        distance: null,
+        distance_unit: null,
+        duration: null,
+        intensity: null,
+        // Add a temporary ID for list keys in WorkoutForm if necessary
+        tempId: `template-${ex.id}-${Date.now()}`
+      }));
+
+      // 3. Navigate to Workout Log page and pass exercises in state
+      navigate('/workouts', { state: { templateExercises: mappedExercises } });
+
     } catch (error) {
       console.error('Error using template:', error.message);
-      setError('Failed to create workout from template. Please try again.');
+      setError(`Failed to load template exercises: ${error.message}.`);
     }
   };
-  
+
+  // Duplicate Template (Commented out - requires more backend logic)
   const handleDuplicateTemplate = async (template) => {
-    try {
-      // Create a new template
-      const { data: newTemplate, error: templateError } = await supabase
-        .from('workout_templates')
-        .insert([{
-          user_id: userId,
-          name: `${template.name} (Copy)`,
-          description: template.description
-        }])
-        .select();
-        
-      if (templateError) throw templateError;
-      
-      // Fetch exercises from original template
-      const { data: exerciseData, error: exerciseError } = await supabase
-        .from('template_exercises')
-        .select('*')
-        .eq('template_id', template.id)
-        .order('order_index');
-        
-      if (exerciseError) throw exerciseError;
-      
-      // Add exercises to new template
-      if (exerciseData.length > 0) {
-        const exercisesToInsert = exerciseData.map(e => ({
-          template_id: newTemplate[0].id,
-          name: e.name,
-          sets: e.sets,
-          reps: e.reps,
-          weight: e.weight,
-          order_index: e.order_index
-        }));
-        
-        const { error: insertError } = await supabase
-          .from('template_exercises')
-          .insert(exercisesToInsert);
-          
-        if (insertError) throw insertError;
-      }
-      
-      // Add new template to state
-      setTemplates([...templates, newTemplate[0]]);
-    } catch (error) {
-      console.error('Error duplicating template:', error.message);
-      setError('Failed to duplicate template. Please try again.');
-    }
-  };
+     console.log("TODO: Implement handleDuplicateTemplate", template);
+     setError('Duplicating templates is not yet implemented.');
+   };
 
   if (loading && templates.length === 0) {
     return (
@@ -490,34 +406,36 @@ const WorkoutTemplates = () => {
           </Typography>
         </Grid>
         <Grid item>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenTemplateForm()}
+            disabled={!currentUser} // Disable if not logged in
           >
             Create Template
           </Button>
         </Grid>
       </Grid>
-      
+
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      
+
       {/* Template List */}
-      <TemplateList 
-        templates={templates} 
+      <TemplateList
+        templates={templates}
         handleOpenExerciseForm={handleOpenExerciseForm}
         handleUseTemplate={handleUseTemplate}
         handleDuplicateTemplate={handleDuplicateTemplate}
         handleOpenTemplateForm={handleOpenTemplateForm}
         handleDeleteTemplate={handleDeleteTemplate}
+        disabled={!currentUser} // Disable actions if not logged in
       />
-      
+
       {/* Template Form Dialog */}
-      <TemplateForm 
+      <TemplateForm
         open={openTemplateForm}
         onClose={handleCloseTemplateForm}
         templateName={templateName}
@@ -527,23 +445,24 @@ const WorkoutTemplates = () => {
         editMode={editMode}
         handleSaveTemplate={handleSaveTemplate}
       />
-      
+
       {/* Exercise Form Dialog */}
-      <ExerciseFormDialog 
+      <ExerciseFormDialog
         open={openExerciseForm}
         onClose={handleCloseExerciseForm}
-        loading={loading}
+        loading={loadingExercises} // Use exercise loading state
         selectedTemplate={selectedTemplate}
         templateExercises={templateExercises}
-        currentExercise={currentExercise}
-        handleExerciseChange={handleExerciseChange}
+        currentExercise={currentExercise} // Pass state down
+        handleExerciseChange={handleExerciseChange} // Pass handler down
         handleAddExercise={handleAddExercise}
         handleDeleteExercise={handleDeleteExercise}
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
-        categories={categories}
-        exercisesByCategory={exercisesByCategory}
-        handleSelectCommonExercise={handleSelectCommonExercise}
+        categories={categories} // Pass empty array for now
+        exercisesByCategory={exercisesByCategory} // Pass empty object for now
+        // handleSelectCommonExercise={handleSelectCommonExercise} // Not needed if common exercises aren't fetched
+        commonExercises={commonExercises} // Pass empty array for now
       />
     </Box>
   );

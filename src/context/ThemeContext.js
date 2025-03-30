@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { createTheme, ThemeProvider as MuiThemeProvider } from '@mui/material/styles';
-import { supabase } from '../index.js';
+// import { supabase } from '../index.js'; // REMOVED Supabase import
 
 // Create context
 export const ThemeContext = createContext();
@@ -15,119 +15,49 @@ export const TEXT_SIZES = {
 
 // Theme provider component
 export const ThemeProvider = ({ children }) => {
-  const [mode, setMode] = useState('light');
-  const [textSize, setTextSize] = useState('medium');
-  const [userId, setUserId] = useState(null);
-  
-  // Load user preferences from Supabase on login
+  // Load initial state from localStorage or use defaults
+  const [mode, setMode] = useState(() => localStorage.getItem('themeMode') || 'light');
+  const [textSize, setTextSize] = useState(() => localStorage.getItem('textSize') || 'medium');
+  // userId is no longer managed here
+
+  // Effect to update localStorage when theme mode changes
   useEffect(() => {
-    const loadUserPreferences = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          setUserId(user.id);
-          
-          // Get user preferences
-          const { data, error } = await supabase
-            .from('user_preferences')
-            .select('theme_mode, text_size')
-            .eq('user_id', user.id)
-            .single();
-          
-          if (error && error.code !== 'PGSQL_ERROR') {
-            console.error('Error loading preferences:', error);
-            return;
-          }
-          
-          // Set preferences if they exist
-          if (data) {
-            if (data.theme_mode) setMode(data.theme_mode);
-            if (data.text_size) setTextSize(data.text_size);
-          } else {
-            // Create default preferences
-            await createDefaultPreferences(user.id);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading theme preferences:', error);
-      }
-    };
-    
-    loadUserPreferences();
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === 'SIGNED_IN') {
-          loadUserPreferences();
-        } else if (event === 'SIGNED_OUT') {
-          // Reset to defaults on sign out
-          setMode('light');
-          setTextSize('medium');
-          setUserId(null);
-        }
-      }
-    );
-    
-    return () => subscription.unsubscribe();
-  }, []);
-  
-  // Create default preferences for new users
-  const createDefaultPreferences = async (userId) => {
     try {
-      const { error } = await supabase
-        .from('user_preferences')
-        .insert([
-          { 
-            user_id: userId,
-            theme_mode: 'light',
-            text_size: 'medium'
-          }
-        ]);
-      
-      if (error) throw error;
+      localStorage.setItem('themeMode', mode);
     } catch (error) {
-      console.error('Error creating default preferences:', error);
+      console.error("Error saving theme mode to localStorage:", error);
     }
-  };
-  
-  // Save theme mode to database
-  const toggleThemeMode = async () => {
-    const newMode = mode === 'light' ? 'dark' : 'light';
-    setMode(newMode);
-    
-    if (userId) {
-      try {
-        const { error } = await supabase
-          .from('user_preferences')
-          .update({ theme_mode: newMode })
-          .eq('user_id', userId);
-        
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error saving theme mode:', error);
-      }
+  }, [mode]);
+
+  // Effect to update localStorage when text size changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('textSize', textSize);
+    } catch (error) {
+      console.error("Error saving text size to localStorage:", error);
     }
-  };
-  
-  // Save text size to database
-  const changeTextSize = async (newSize) => {
-    setTextSize(newSize);
-    
-    if (userId) {
-      try {
-        const { error } = await supabase
-          .from('user_preferences')
-          .update({ text_size: newSize })
-          .eq('user_id', userId);
-        
-        if (error) throw error;
-      } catch (error) {
-        console.error('Error saving text size:', error);
-      }
+  }, [textSize]);
+
+  // REMOVED: useEffect that loaded preferences from Supabase and listened to auth changes
+
+  // REMOVED: createDefaultPreferences function
+
+  // Toggle theme mode and save to localStorage
+  const toggleThemeMode = useCallback(() => {
+    setMode((prevMode) => (prevMode === 'light' ? 'dark' : 'light'));
+    // No database interaction needed here anymore
+  }, []);
+
+  // Change text size and save to localStorage
+  const changeTextSize = useCallback((newSize) => {
+    if (TEXT_SIZES[newSize]) { // Ensure valid size
+        setTextSize(newSize);
+        // No database interaction needed here anymore
+    } else {
+      console.warn(`Invalid text size selected: ${newSize}`);
     }
-  };
-  
+  }, []);
+
   // Create theme with current settings
   const theme = createTheme({
     palette: {
@@ -135,12 +65,12 @@ export const ThemeProvider = ({ children }) => {
       ...(mode === 'light'
         ? {
             primary: {
-              main: '#2196f3', // Brighter blue
+              main: '#2196f3',
               light: '#64b5f6',
               dark: '#1976d2',
             },
             secondary: {
-              main: '#f50057', // Vibrant pink
+              main: '#f50057',
               light: '#ff4081',
               dark: '#c51162',
             },
@@ -157,17 +87,17 @@ export const ThemeProvider = ({ children }) => {
           }
         : {
             primary: {
-              main: '#90caf9', // Lighter blue for dark mode
+              main: '#90caf9',
               light: '#bbdefb',
               dark: '#42a5f5',
             },
             secondary: {
-              main: '#f48fb1', // Lighter pink for dark mode
+              main: '#f48fb1',
               light: '#f8bbd0',
               dark: '#ec407a',
             },
             background: {
-              default: '#1a1a1a', // Darker background
+              default: '#1a1a1a',
               paper: '#333333',
             },
             success: {
@@ -179,66 +109,36 @@ export const ThemeProvider = ({ children }) => {
           }),
     },
     shape: {
-      borderRadius: 16, // Global rounded corners
+      borderRadius: 16,
     },
     typography: {
       fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-      fontSize: 14 * TEXT_SIZES[textSize],
-      h1: {
-        fontSize: '2.5rem',
-        fontWeight: 600,
-      },
-      h2: {
-        fontSize: '2rem',
-        fontWeight: 600,
-      },
-      h3: {
-        fontSize: '1.75rem',
-        fontWeight: 500,
-      },
-      h4: {
-        fontSize: '1.5rem',
-        fontWeight: 500,
-      },
-      h5: {
-        fontSize: '1.25rem',
-        fontWeight: 500,
-      },
-      h6: {
-        fontSize: '1rem',
-        fontWeight: 500,
-      },
-      button: {
-        textTransform: 'none', // More modern look without all caps
-        fontWeight: 500,
-      },
+      fontSize: 14 * (TEXT_SIZES[textSize] || TEXT_SIZES.medium), // Fallback to medium
+      h1: { fontSize: '2.5rem', fontWeight: 600 },
+      h2: { fontSize: '2rem', fontWeight: 600 },
+      h3: { fontSize: '1.75rem', fontWeight: 500 },
+      h4: { fontSize: '1.5rem', fontWeight: 500 },
+      h5: { fontSize: '1.25rem', fontWeight: 500 },
+      h6: { fontSize: '1rem', fontWeight: 500 },
+      button: { textTransform: 'none', fontWeight: 500 },
     },
     components: {
       MuiButton: {
         styleOverrides: {
           root: {
-            fontSize: 14 * TEXT_SIZES[textSize],
+            fontSize: 14 * (TEXT_SIZES[textSize] || TEXT_SIZES.medium),
             borderRadius: 12,
             padding: '8px 16px',
             boxShadow: 'none',
-            '&:hover': {
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-            },
+            '&:hover': { boxShadow: '0 4px 8px rgba(0,0,0,0.1)' },
           },
-          containedPrimary: {
-            backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)',
-          },
-          containedSecondary: {
-            backgroundImage: 'linear-gradient(to right, #c51162, #f50057)',
-          },
+          containedPrimary: { backgroundImage: 'linear-gradient(to right, #1976d2, #2196f3)' },
+          containedSecondary: { backgroundImage: 'linear-gradient(to right, #c51162, #f50057)' },
         },
       },
       MuiPaper: {
         styleOverrides: {
-          root: {
-            borderRadius: 16,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          },
+          root: { borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' },
         },
       },
       MuiCard: {
@@ -247,50 +147,33 @@ export const ThemeProvider = ({ children }) => {
             borderRadius: 16,
             overflow: 'hidden',
             transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-            '&:hover': {
-              transform: 'translateY(-4px)',
-              boxShadow: '0 12px 20px rgba(0,0,0,0.1)',
-            },
+            '&:hover': { transform: 'translateY(-4px)', boxShadow: '0 12px 20px rgba(0,0,0,0.1)' },
           },
         },
       },
       MuiTextField: {
         styleOverrides: {
           root: {
-            fontSize: 14 * TEXT_SIZES[textSize],
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 12,
-            },
+            fontSize: 14 * (TEXT_SIZES[textSize] || TEXT_SIZES.medium),
+            '& .MuiOutlinedInput-root': { borderRadius: 12 },
           },
         },
       },
       MuiChip: {
-        styleOverrides: {
-          root: {
-            borderRadius: 8,
-          },
-        },
+        styleOverrides: { root: { borderRadius: 8 } },
       },
       MuiAppBar: {
-        styleOverrides: {
-          root: {
-            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-          },
-        },
+        styleOverrides: { root: { boxShadow: '0 2px 12px rgba(0,0,0,0.1)' } },
       },
       MuiSwitch: {
         styleOverrides: {
-          root: {
-            padding: 8,
-          },
-          thumb: {
-            boxShadow: 'none',
-          },
+          root: { padding: 8 },
+          thumb: { boxShadow: 'none' },
         },
       },
     },
   });
-  
+
   return (
     <ThemeContext.Provider value={{ mode, textSize, toggleThemeMode, changeTextSize }}>
       <MuiThemeProvider theme={theme}>

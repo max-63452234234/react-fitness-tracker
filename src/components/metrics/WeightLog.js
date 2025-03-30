@@ -25,7 +25,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import { supabase } from '../../index.js';
+// import { supabase } from '../../index.js'; // REMOVED Supabase import
 import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -51,8 +51,10 @@ ChartJS.register(
 
 /**
  * WeightLog component for tracking user weight over time
+ * @param {Object} props - Component props
+ * @param {Object} props.currentUser - Current user object (e.g., { id: userId })
  */
-const WeightLog = () => {
+const WeightLog = ({ currentUser }) => { // Accept currentUser prop
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openForm, setOpenForm] = useState(false);
@@ -61,7 +63,7 @@ const WeightLog = () => {
   const [editMode, setEditMode] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
+  // const [userId, setUserId] = useState(null); // Use currentUser.id
   const [stats, setStats] = useState({
     current: 0,
     average: 0,
@@ -70,69 +72,76 @@ const WeightLog = () => {
     change: 0,
   });
 
+  // Function to calculate stats from entries
+  const calculateStats = (currentEntries) => {
+      if (currentEntries && currentEntries.length > 0) {
+        const sortedEntries = [...currentEntries].sort((a, b) =>
+          new Date(a.date) - new Date(b.date)
+        );
+        const weights = sortedEntries.map(entry => entry.weight);
+        const current = weights[weights.length - 1];
+        const lowest = Math.min(...weights);
+        const highest = Math.max(...weights);
+        const sum = weights.reduce((acc, w) => acc + w, 0);
+        const average = sum / weights.length;
+        const first = weights[0];
+        const change = current - first;
+
+        setStats({
+          current,
+          average: average.toFixed(1),
+          lowest,
+          highest,
+          change: change.toFixed(1)
+        });
+      } else {
+        // Reset stats if no entries
+        setStats({ current: 0, average: 0, lowest: 0, highest: 0, change: 0 });
+      }
+  };
+
+  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
+      if (!currentUser || !currentUser.id) {
+        console.log("WeightLog: No current user found.");
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
         setError(null);
-        
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) return;
-        
-        setUserId(user.id);
-        
-        const { data, error } = await supabase
-          .from('weight_logs')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('date', { ascending: false });
-          
-        if (error) throw error;
-        
-        setEntries(data || []);
-        
-        // Calculate stats if there are entries
-        if (data && data.length > 0) {
-          // Sort by date (ascending)
-          const sortedEntries = [...data].sort((a, b) => 
-            new Date(a.date) - new Date(b.date)
-          );
-          
-          const weights = sortedEntries.map(entry => entry.weight);
-          const current = weights[weights.length - 1];
-          const lowest = Math.min(...weights);
-          const highest = Math.max(...weights);
-          const sum = weights.reduce((acc, weight) => acc + weight, 0);
-          const average = sum / weights.length;
-          
-          // Change over time (last entry minus first entry)
-          const first = weights[0];
-          const change = current - first;
-          
-          setStats({
-            current,
-            average: average.toFixed(1),
-            lowest,
-            highest,
-            change: change.toFixed(1)
-          });
+        const userId = currentUser.id;
+
+        // --- Fetch weight logs from backend API ---
+        const response = await fetch(`http://localhost:3002/api/weight-logs?userId=${userId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
         }
+        const data = await response.json();
+        const fetchedEntries = data.data || [];
+        setEntries(fetchedEntries);
+        calculateStats(fetchedEntries); // Calculate stats after fetching
+
       } catch (error) {
         console.error('Error fetching weight entries:', error.message);
-        setError('Error loading weight data. Please try again.');
+        setError(`Error loading weight data: ${error.message}. Please try again.`);
+        setEntries([]);
+        calculateStats([]); // Reset stats on error
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchData();
-  }, []);
-  
+  }, [currentUser]); // Re-fetch if user changes
+
   const handleOpenForm = (entry = null) => {
     if (entry) {
       setSelectedEntry(entry);
-      setDate(entry.date.split('T')[0]);
+      setDate(entry.date.split('T')[0]); // Assuming date is YYYY-MM-DD
       setWeight(entry.weight.toString());
       setEditMode(true);
     } else {
@@ -143,174 +152,132 @@ const WeightLog = () => {
     }
     setOpenForm(true);
   };
-  
+
   const handleCloseForm = () => {
     setOpenForm(false);
     setSelectedEntry(null);
     setEditMode(false);
+    setError(null); // Clear form-specific errors on close
   };
-  
+
+  // Handle Add/Update Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError(null); // Clear previous errors
+
+    if (!currentUser?.id) {
+        setError('User not logged in.');
+        return;
+    }
     if (!date || !weight || isNaN(weight) || parseFloat(weight) <= 0) {
-      setError('Please enter a valid weight');
+      setError('Please enter a valid date and weight');
       return;
     }
-    
+
+    const entryData = {
+        userId: currentUser.id, // Include userId for backend check (until JWT)
+        date: date,
+        weight: parseFloat(weight)
+    };
+
     try {
-      setError(null);
-      
+      let response;
+      let updatedEntryData;
+
       if (editMode && selectedEntry) {
         // Update existing entry
-        const { error } = await supabase
-          .from('weight_logs')
-          .update({ 
-            date,
-            weight: parseFloat(weight)
-          })
-          .eq('id', selectedEntry.id);
-          
-        if (error) throw error;
-        
-        // Update entry in state
-        setEntries(entries.map(entry => 
-          entry.id === selectedEntry.id 
-            ? { ...entry, date, weight: parseFloat(weight) }
-            : entry
-        ));
+        response = await fetch(`http://localhost:3002/api/weight-logs/${selectedEntry.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entryData) // Send full data including userId
+        });
       } else {
         // Add new entry
-        const { data, error } = await supabase
-          .from('weight_logs')
-          .insert([
-            { 
-              user_id: userId,
-              date,
-              weight: parseFloat(weight)
-            }
-          ])
-          .select();
-          
-        if (error) throw error;
-        
-        // Add new entry to state
-        setEntries([data[0], ...entries]);
-      }
-      
-      handleCloseForm();
-      
-      // Recalculate stats
-      const allEntries = [...entries];
-      if (!editMode) {
-        allEntries.push({ date, weight: parseFloat(weight) });
-      } else {
-        const index = allEntries.findIndex(e => e.id === selectedEntry.id);
-        if (index !== -1) {
-          allEntries[index] = { ...allEntries[index], date, weight: parseFloat(weight) };
-        }
-      }
-      
-      // Sort by date
-      const sortedEntries = allEntries.sort((a, b) => 
-        new Date(a.date) - new Date(b.date)
-      );
-      
-      const weights = sortedEntries.map(entry => entry.weight);
-      
-      if (weights.length > 0) {
-        const current = weights[weights.length - 1];
-        const lowest = Math.min(...weights);
-        const highest = Math.max(...weights);
-        const sum = weights.reduce((acc, weight) => acc + weight, 0);
-        const average = sum / weights.length;
-        
-        const first = weights[0];
-        const change = current - first;
-        
-        setStats({
-          current,
-          average: average.toFixed(1),
-          lowest,
-          highest,
-          change: change.toFixed(1)
+        response = await fetch(`http://localhost:3002/api/weight-logs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(entryData)
         });
       }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      updatedEntryData = await response.json(); // Backend returns the created/updated entry
+
+      // Update state
+      let newEntries;
+      if (editMode) {
+        newEntries = entries.map(entry =>
+          entry.id === selectedEntry.id ? updatedEntryData.data : entry
+        );
+      } else {
+        // Add new entry and re-sort by date descending for display
+        newEntries = [...entries, updatedEntryData.data].sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+      setEntries(newEntries);
+      calculateStats(newEntries); // Recalculate stats
+      handleCloseForm();
+
     } catch (error) {
       console.error('Error saving weight entry:', error.message);
-      setError('Failed to save weight entry. Please try again.');
+      setError(`Failed to save weight entry: ${error.message}. Please try again.`);
     }
   };
-  
+
+  // Handle Delete
   const handleDelete = async (entryId) => {
+    if (!currentUser?.id) return;
+
     if (!window.confirm('Are you sure you want to delete this weight entry?')) {
       return;
     }
-    
+    setError(null);
+
     try {
-      const { error } = await supabase
-        .from('weight_logs')
-        .delete()
-        .eq('id', entryId);
-        
-      if (error) throw error;
-      
+      const response = await fetch(`http://localhost:3002/api/weight-logs/${entryId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          // Pass userId in body until JWT is implemented
+          body: JSON.stringify({ userId: currentUser.id })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
       // Remove entry from state
       const updatedEntries = entries.filter(entry => entry.id !== entryId);
       setEntries(updatedEntries);
-      
-      // Recalculate stats
-      if (updatedEntries.length > 0) {
-        // Sort by date
-        const sortedEntries = [...updatedEntries].sort((a, b) => 
-          new Date(a.date) - new Date(b.date)
-        );
-        
-        const weights = sortedEntries.map(entry => entry.weight);
-        const current = weights[weights.length - 1];
-        const lowest = Math.min(...weights);
-        const highest = Math.max(...weights);
-        const sum = weights.reduce((acc, weight) => acc + weight, 0);
-        const average = sum / weights.length;
-        
-        const first = weights[0];
-        const change = current - first;
-        
-        setStats({
-          current,
-          average: average.toFixed(1),
-          lowest,
-          highest,
-          change: change.toFixed(1)
-        });
-      } else {
-        setStats({
-          current: 0,
-          average: 0,
-          lowest: 0,
-          highest: 0,
-          change: 0,
-        });
-      }
+      calculateStats(updatedEntries); // Recalculate stats
+
     } catch (error) {
       console.error('Error deleting weight entry:', error.message);
-      setError('Failed to delete weight entry. Please try again.');
+      setError(`Failed to delete weight entry: ${error.message}. Please try again.`);
     }
   };
-  
+
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
+     try {
+         const date = new Date(dateString + 'T00:00:00'); // Add time part to avoid timezone issues
+         if (isNaN(date.getTime())) return "Invalid Date";
+         return date.toLocaleDateString();
+     } catch (e) {
+         return "Invalid Date";
+     }
   };
-  
+
   // Prepare chart data
   const prepareChartData = () => {
-    // Clone and sort entries by date (ascending)
     const sortedEntries = [...entries]
       .sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     const dates = sortedEntries.map(entry => formatDate(entry.date));
     const weights = sortedEntries.map(entry => entry.weight);
-    
+
     return {
       labels: dates,
       datasets: [
@@ -325,25 +292,18 @@ const WeightLog = () => {
       ]
     };
   };
-  
+
   const chartOptions = {
     responsive: true,
     plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Weight Progress Over Time',
-      },
+      legend: { position: 'top' },
+      title: { display: true, text: 'Weight Progress Over Time' },
     },
     scales: {
       y: {
-        title: {
-          display: true,
-          text: 'Weight (kg)'
-        },
-        min: entries.length > 0 ? Math.floor(stats.lowest * 0.95) : 0,
+        title: { display: true, text: 'Weight (kg)' },
+        min: entries.length > 0 ? Math.floor(stats.lowest * 0.95) : undefined, // Use undefined for auto-min if no entries
+        beginAtZero: false // Don't force y-axis to start at 0
       }
     }
   };
@@ -365,93 +325,66 @@ const WeightLog = () => {
           </Typography>
         </Grid>
         <Grid item>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenForm()}
+            disabled={!currentUser} // Disable if not logged in
           >
             Log Weight
           </Button>
         </Grid>
       </Grid>
-      
+
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-      
+
       {/* Stats Cards */}
       {entries.length > 0 && (
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={6} sm={4} md={2}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Current
-                </Typography>
-                <Typography variant="h5" component="div">
-                  {stats.current} kg
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Current</Typography>
+                <Typography variant="h5" component="div">{stats.current} kg</Typography>
               </CardContent>
             </Card>
           </Grid>
-          
           <Grid item xs={6} sm={4} md={2}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Average
-                </Typography>
-                <Typography variant="h5" component="div">
-                  {stats.average} kg
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Average</Typography>
+                <Typography variant="h5" component="div">{stats.average} kg</Typography>
               </CardContent>
             </Card>
           </Grid>
-          
           <Grid item xs={6} sm={4} md={2}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Lowest
-                </Typography>
-                <Typography variant="h5" component="div">
-                  {stats.lowest} kg
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Lowest</Typography>
+                <Typography variant="h5" component="div">{stats.lowest} kg</Typography>
               </CardContent>
             </Card>
           </Grid>
-          
           <Grid item xs={6} sm={4} md={2}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Highest
-                </Typography>
-                <Typography variant="h5" component="div">
-                  {stats.highest} kg
-                </Typography>
+                <Typography variant="subtitle2" color="text.secondary">Highest</Typography>
+                <Typography variant="h5" component="div">{stats.highest} kg</Typography>
               </CardContent>
             </Card>
           </Grid>
-          
           <Grid item xs={12} sm={4} md={4}>
             <Card>
               <CardContent>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Change
-                </Typography>
-                <Typography 
-                  variant="h5" 
+                <Typography variant="subtitle2" color="text.secondary">Change</Typography>
+                <Typography
+                  variant="h5"
                   component="div"
-                  color={
-                    parseFloat(stats.change) < 0 
-                      ? 'success.main' 
-                      : parseFloat(stats.change) > 0 
-                        ? 'error.main' 
-                        : 'text.primary'
-                  }
+                  color={parseFloat(stats.change) < 0 ? 'success.main' : parseFloat(stats.change) > 0 ? 'error.main' : 'text.primary'}
                 >
                   {stats.change > 0 ? '+' : ''}{stats.change} kg
                 </Typography>
@@ -460,16 +393,16 @@ const WeightLog = () => {
           </Grid>
         </Grid>
       )}
-      
+
       {/* Chart */}
       {entries.length > 0 && (
         <Paper sx={{ p: 3, mb: 4 }}>
           <Line data={prepareChartData()} options={chartOptions} />
         </Paper>
       )}
-      
+
       {/* Weight Log Table */}
-      {entries.length === 0 ? (
+      {entries.length === 0 && !loading ? (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="body1">
             You haven't logged any weight entries yet. Click "Log Weight" to get started!
@@ -486,23 +419,26 @@ const WeightLog = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {entries.map((entry) => (
+              {/* Display entries sorted by date descending */}
+              {entries.sort((a, b) => new Date(b.date) - new Date(a.date)).map((entry) => (
                 <TableRow key={entry.id}>
                   <TableCell>{formatDate(entry.date)}</TableCell>
                   <TableCell>{entry.weight} kg</TableCell>
                   <TableCell align="right">
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       color="primary"
                       onClick={() => handleOpenForm(entry)}
                       sx={{ mr: 1 }}
+                      disabled={!currentUser}
                     >
                       <EditIcon />
                     </IconButton>
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       color="error"
                       onClick={() => handleDelete(entry.id)}
+                      disabled={!currentUser}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -513,18 +449,22 @@ const WeightLog = () => {
           </Table>
         </TableContainer>
       )}
-      
+
       {/* Weight Form Dialog */}
       <Dialog open={openForm} onClose={handleCloseForm}>
-        <DialogTitle>
-          {editMode ? 'Edit Weight Entry' : 'Add Weight Entry'}
-        </DialogTitle>
+        <DialogTitle>{editMode ? 'Edit Weight Entry' : 'Add Weight Entry'}</DialogTitle>
         <Box component="form" onSubmit={handleSubmit}>
           <DialogContent>
+             {/* Display form-specific error */}
+             {error && openForm && (
+               <Alert severity="error" sx={{ mb: 2 }}>
+                 {error}
+               </Alert>
+             )}
             <Grid container spacing={2}>
               <Grid item xs={12}>
                 <TextField
-                  margin="normal"
+                  margin="dense" // Changed margin
                   required
                   fullWidth
                   id="date"
@@ -532,14 +472,12 @@ const WeightLog = () => {
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
+                  InputLabelProps={{ shrink: true }}
                 />
               </Grid>
               <Grid item xs={12}>
                 <TextField
-                  margin="normal"
+                  margin="dense" // Changed margin
                   required
                   fullWidth
                   id="weight"
@@ -553,14 +491,8 @@ const WeightLog = () => {
             </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseForm}>
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              variant="contained" 
-              color="primary"
-            >
+            <Button onClick={handleCloseForm}>Cancel</Button>
+            <Button type="submit" variant="contained" color="primary">
               {editMode ? 'Update' : 'Save'}
             </Button>
           </DialogActions>

@@ -8,11 +8,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
+  // IconButton, // Removed unused
   Paper
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
+// import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // Removed unused
+// import CancelIcon from '@mui/icons-material/Cancel'; // Removed unused
 import { format, getMonth, isToday } from 'date-fns';
 import { getHabitCount } from '../utils/habitUtils';
 
